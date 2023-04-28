@@ -32,12 +32,12 @@ jobs:
         if: ${{ runner.os == 'Linux' }}
         uses: Swatinem/rust-cache@v2.0.1
 
-      - name: Run cargo check --all-targets w/ -D warnings
+      - name: Run cargo check --all-targets w/ 
         run: cargo check --all-targets
         env:
           RUSTFLAGS: "-D warnings"
 
-      - name: Run cargo test w/ -D warnings
+      - name: Run cargo test w/ 
         if: ${{ runner.os == 'Linux' }}
         run: cargo test -- --test-threads=1
         env:
