@@ -1,17 +1,18 @@
+mod detail;
 mod graphs;
+mod home;
 mod login;
 
 use crate::graphs::PlantChart;
 use iced::widget::vertical_slider::draw;
+use iced::widget::{button, container, row, Button, Column, Container, Row, Text};
 use iced::{Element, Length, Sandbox, Settings};
-use iced::widget::{button, Button, Column, Container, Row, Text, container, row};
 use plotters::coord::types::RangedCoordf32;
 use plotters::prelude::*;
 use plotters_iced::{Chart, ChartBuilder, ChartWidget, DrawingBackend};
 
-
 fn main() {
-    ExampleApp::run(Settings::default());
+    ExampleApp::run(Settings::default()).unwrap();
 }
 
 #[derive(Default)]
@@ -21,14 +22,16 @@ struct ExampleApp {
 
 #[derive(Debug, Clone)]
 enum ExampleMessage {
-    SwitchToPage1,
-    SwitchToPage2,
+    SwitchToHomePage,
+    SwitchToLoginPage,
+    SwitchToDetailPage,
 }
 
 #[derive(Debug, Clone)]
 enum Page {
-    Page1,
-    Page2,
+    Home,
+    Login,
+    Detail,
 }
 
 struct PageState {
@@ -37,7 +40,9 @@ struct PageState {
 
 impl Default for PageState {
     fn default() -> Self {
-        Self { current: Page::Page1 }
+        Self {
+            current: Page::Home,
+        }
     }
 }
 
@@ -54,11 +59,14 @@ impl Sandbox for ExampleApp {
 
     fn update(&mut self, message: Self::Message) {
         match message {
-            ExampleMessage::SwitchToPage1 => {
-                self.state.current = Page::Page1;
+            ExampleMessage::SwitchToHomePage => {
+                self.state.current = Page::Home;
             }
-            ExampleMessage::SwitchToPage2 => {
-                self.state.current = Page::Page2;
+            ExampleMessage::SwitchToDetailPage => {
+                self.state.current = Page::Detail;
+            }
+            ExampleMessage::SwitchToLoginPage => {
+                self.state.current = Page::Login;
             }
         }
     }
@@ -67,21 +75,17 @@ impl Sandbox for ExampleApp {
         let sidebar = Column::new()
             .width(Length::from(100))
             .spacing(10)
-            .push(
-                Button::new("Page 1")
-                    .on_press(ExampleMessage::SwitchToPage1),
-            )
-            .push(
-                Button::new("Page 2")
-                    .on_press(ExampleMessage::SwitchToPage2),
-            );
+            .push(Button::new("Home").on_press(ExampleMessage::SwitchToHomePage))
+            .push(Button::new("Einzelansicht").on_press(ExampleMessage::SwitchToDetailPage))
+            .push(Button::new("Login").on_press(ExampleMessage::SwitchToLoginPage));
 
         let content = match self.state.current {
-            Page::Page1 => Text::new("This is Page 1"),
-            Page::Page2 => Text::new("This is Page 2"),
+            Page::Home => home::HomePage.view(),
+            Page::Detail => detail::DetailPage.view(),
+            Page::Login => login::LoginPage.view(),
         };
 
-        let main_view  =  row![sidebar, content];
+        let main_view = row![sidebar, content];
 
         container(main_view)
             .width(Length::Fill)
