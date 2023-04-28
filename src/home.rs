@@ -8,12 +8,12 @@ use plotters::coord::types::RangedCoordf32;
 use plotters::prelude::*;
 use plotters_iced::{Chart, ChartBuilder, ChartWidget, DrawingBackend};
 
-pub(crate) struct LoginPage;
+pub(crate) struct HomePage;
 
-impl LoginPage {
+impl HomePage {
     pub(crate) fn view(&self) -> iced::Element<ExampleMessage> {
         // Replace this with your customized page layout
-        Text::new("This is the Login Page")
+        Text::new("This is the Home Page")
             .width(Length::Fill)
             .height(Length::Fill)
             .size(50)
