@@ -1,42 +1,92 @@
-use iced::{Element, Length, Sandbox, Settings};
+mod graphs;
+mod login;
+
+use crate::graphs::PlantChart;
 use iced::widget::vertical_slider::draw;
-use plotters::prelude::*;
+use iced::{Element, Length, Sandbox, Settings};
+use iced::widget::{button, Button, Column, Container, Row, Text, container, row};
 use plotters::coord::types::RangedCoordf32;
-use plotters_iced::{Chart, ChartWidget, DrawingBackend, ChartBuilder};
-pub fn main() -> iced::Result {
-    Plantbuddy::run(Settings::default())
+use plotters::prelude::*;
+use plotters_iced::{Chart, ChartBuilder, ChartWidget, DrawingBackend};
+
+
+fn main() {
+    ExampleApp::run(Settings::default());
 }
 
-struct Plantbuddy;
-impl<Message> Chart<Message> for Plantbuddy {
-    type State = ();
-    fn build_chart<DB:DrawingBackend>(&self, state: &Self::State, mut builder: ChartBuilder<DB>) {
-        let mut chart = builder.build_cartesian_2d(0.0..10.0, 0.0..10.0).unwrap();
-        chart.draw_series(LineSeries::new(
-            (0..10).map(|x| (x as f64, x as f64)),
-            &RED,
-        )).unwrap();
+#[derive(Default)]
+struct ExampleApp {
+    state: PageState,
+}
+
+#[derive(Debug, Clone)]
+enum ExampleMessage {
+    SwitchToPage1,
+    SwitchToPage2,
+}
+
+#[derive(Debug, Clone)]
+enum Page {
+    Page1,
+    Page2,
+}
+
+struct PageState {
+    current: Page,
+}
+
+impl Default for PageState {
+    fn default() -> Self {
+        Self { current: Page::Page1 }
     }
 }
-impl Sandbox for Plantbuddy {
-    type Message = ();
 
-    fn new() -> Plantbuddy {
-        Plantbuddy
+impl Sandbox for ExampleApp {
+    type Message = ExampleMessage;
+
+    fn new() -> Self {
+        Self::default()
     }
 
     fn title(&self) -> String {
-        String::from("A cool application")
+        String::from("Iced Example App")
     }
 
-    fn update(&mut self, _message: Self::Message) {
-        // This application has no interactions
+    fn update(&mut self, message: Self::Message) {
+        match message {
+            ExampleMessage::SwitchToPage1 => {
+                self.state.current = Page::Page1;
+            }
+            ExampleMessage::SwitchToPage2 => {
+                self.state.current = Page::Page2;
+            }
+        }
     }
 
-    fn view(&self)->Element<Self::Message> {
-        ChartWidget::new(self)
+    fn view(&self) -> Element<Self::Message> {
+        let sidebar = Column::new()
+            .width(Length::from(100))
+            .spacing(10)
+            .push(
+                Button::new("Page 1")
+                    .on_press(ExampleMessage::SwitchToPage1),
+            )
+            .push(
+                Button::new("Page 2")
+                    .on_press(ExampleMessage::SwitchToPage2),
+            );
+
+        let content = match self.state.current {
+            Page::Page1 => Text::new("This is Page 1"),
+            Page::Page2 => Text::new("This is Page 2"),
+        };
+
+        let main_view  =  row![sidebar, content];
+
+        container(main_view)
             .width(Length::Fill)
             .height(Length::Fill)
+            .padding(20)
             .into()
     }
-    }
+}
