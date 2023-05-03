@@ -5,49 +5,30 @@ mod login;
 
 use crate::graphs::PlantChart;
 use iced::widget::vertical_slider::draw;
-use iced::widget::{button, container, row, Button, Column, Container, Row, Text};
 use iced::{Element, Length, Sandbox, Settings};
+use iced::widget::{button, Button, Column, Container, Row, Text, container, row};
 use plotters::coord::types::RangedCoordf32;
 use plotters::prelude::*;
 use plotters_iced::{Chart, ChartBuilder, ChartWidget, DrawingBackend};
+use iced_aw::{TabBar, TabLabel};
 
 fn main() {
-    ExampleApp::run(Settings::default()).unwrap();
+    Plantbuddy::run(Settings::default()).unwrap();
 }
+
 
 #[derive(Default)]
-struct ExampleApp {
-    state: PageState,
+struct Plantbuddy {
+    active_tab: usize,
 }
 
 #[derive(Debug, Clone)]
-enum ExampleMessage {
-    SwitchToHomePage,
-    SwitchToLoginPage,
-    SwitchToDetailPage,
+enum Message {
+    TabSelected(usize),
 }
 
-#[derive(Debug, Clone)]
-enum Page {
-    Home,
-    Login,
-    Detail,
-}
-
-struct PageState {
-    current: Page,
-}
-
-impl Default for PageState {
-    fn default() -> Self {
-        Self {
-            current: Page::Home,
-        }
-    }
-}
-
-impl Sandbox for ExampleApp {
-    type Message = ExampleMessage;
+impl Sandbox for Plantbuddy {
+    type Message = Message;
 
     fn new() -> Self {
         Self::default()
@@ -59,35 +40,30 @@ impl Sandbox for ExampleApp {
 
     fn update(&mut self, message: Self::Message) {
         match message {
-            ExampleMessage::SwitchToHomePage => {
-                self.state.current = Page::Home;
-            }
-            ExampleMessage::SwitchToDetailPage => {
-                self.state.current = Page::Detail;
-            }
-            ExampleMessage::SwitchToLoginPage => {
-                self.state.current = Page::Login;
+            Message::TabSelected(index) => {
+                self.active_tab = index;
             }
         }
     }
 
     fn view(&self) -> Element<Self::Message> {
-        let sidebar = Column::new()
-            .width(Length::from(100))
-            .spacing(10)
-            .push(Button::new("Home").on_press(ExampleMessage::SwitchToHomePage))
-            .push(Button::new("Einzelansicht").on_press(ExampleMessage::SwitchToDetailPage))
-            .push(Button::new("Login").on_press(ExampleMessage::SwitchToLoginPage));
+        let tab_bar = TabBar::new(self.active_tab, Message::TabSelected)
+            .push(TabLabel::Text(String::from("Home")))
+            .push(TabLabel::Text(String::from("Einzelansicht")))
+            .push(TabLabel::Text(String::from("Login")));
 
-        let content = match self.state.current {
-            Page::Home => home::HomePage.view(),
-            Page::Detail => detail::DetailPage.view(),
-            Page::Login => login::LoginPage.view(),
+        let content = match self.active_tab {
+            0 => home::HomePage.view(),
+            1 => detail::DetailPage.view(),
+            2 => login::LoginPage.view(),
+            _ => Element::new(Text::new("This tab doesn't exist"))
         };
 
-        let main_view = row![sidebar, content];
+        let main_view = Row::new()
+            .push(tab_bar)
+            .push(content);
 
-        container(main_view)
+        Container::new(main_view)
             .width(Length::Fill)
             .height(Length::Fill)
             .padding(20)

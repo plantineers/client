@@ -1,5 +1,5 @@
 use crate::graphs::PlantChart;
-use crate::ExampleMessage;
+use crate::Message;
 use iced::widget::{container, row, Button, Column, Container, Row, Text};
 use iced::{Element, Length};
 use plotters::prelude::*;
@@ -43,8 +43,8 @@ impl<Message> Chart<Message> for DetailPage {
 }
 
 impl DetailPage {
-    pub(crate) fn view(&self) -> Element<ExampleMessage> {
-        let chart: Element<ExampleMessage> = ChartWidget::new(self)
+    pub(crate) fn view(&self) -> Element<Message> {
+        let chart: Element<Message> = ChartWidget::new(self)
             .width(Length::Fill)
             .height(Length::Fill)
             .into();
