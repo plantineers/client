@@ -1,21 +1,100 @@
-use crate::graphs::PlantChart;
-use crate::Message;
-use iced::widget::vertical_slider::draw;
-use iced::widget::{button, container, row, Button, Column, Container, Row, Text};
-use iced::{Application, Command, Element, Length, Sandbox, Settings};
-use plotters::coord::types::RangedCoordf32;
-use plotters::prelude::*;
-use plotters_iced::{Chart, ChartBuilder, ChartWidget, DrawingBackend};
+use iced::{
+    alignment::{Horizontal, Vertical},
+    widget::{Button, Column, Container, Row, Text, TextInput},
+    Alignment, Element, Length,
+};
+use iced_aw::tab_bar::TabLabel;
 
-pub(crate) struct LoginPage;
+use crate::{Icon, Message, Tab};
+
+#[derive(Debug, Clone)]
+pub enum LoginMessage {
+    UsernameChanged(String),
+    PasswordChanged(String),
+    ClearPressed,
+    LoginPressed,
+}
+
+pub struct LoginPage {
+    username: String,
+    password: String,
+}
 
 impl LoginPage {
-    pub(crate) fn view(&self) -> iced::Element<Message> {
-        // Replace this with your customized page layout
-        Text::new("This is the Login Page")
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .size(50)
-            .into()
+    pub fn new() -> Self {
+        LoginPage {
+            username: String::new(),
+            password: String::new(),
+        }
+    }
+
+    pub fn update(&mut self, message: LoginMessage) {
+        match message {
+            LoginMessage::UsernameChanged(value) => self.username = value,
+            LoginMessage::PasswordChanged(value) => self.password = value,
+            LoginMessage::ClearPressed => {
+                self.username = String::new();
+                self.password = String::new();
+            }
+            LoginMessage::LoginPressed => {}
+        }
+    }
+}
+
+impl Tab for LoginPage {
+    type Message = Message;
+
+    fn title(&self) -> String {
+        String::from("Login")
+    }
+
+    fn tab_label(&self) -> TabLabel {
+        TabLabel::IconText(Icon::User.into(), self.title())
+    }
+
+    fn content(&self) -> Element<'_, Self::Message> {
+        let content: Element<'_, LoginMessage> = Container::new(
+            Column::new()
+                .align_items(Alignment::Center)
+                .max_width(600)
+                .padding(20)
+                .spacing(16)
+                .push(
+                    TextInput::new("Username", &self.username)
+                        .on_input(LoginMessage::UsernameChanged)
+                        .padding(10)
+                        .size(32),
+                )
+                .push(
+                    TextInput::new("Password", &self.password)
+                        .on_input(LoginMessage::PasswordChanged)
+                        .padding(10)
+                        .size(32)
+                        .password(),
+                )
+                .push(
+                    Row::new()
+                        .spacing(10)
+                        .push(
+                            Button::new(
+                                Text::new("Clear").horizontal_alignment(Horizontal::Center),
+                            )
+                                .width(Length::Fill)
+                                .on_press(LoginMessage::ClearPressed),
+                        )
+                        .push(
+                            Button::new(
+                                Text::new("Login").horizontal_alignment(Horizontal::Center),
+                            )
+                                .width(Length::Fill)
+                                .on_press(LoginMessage::LoginPressed),
+                        ),
+                ),
+        )
+            .align_x(Horizontal::Center)
+            .align_y(Vertical::Center)
+            .into();
+
+        content.map(Message::Login)
     }
 }

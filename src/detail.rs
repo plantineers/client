@@ -1,60 +1,60 @@
 use crate::graphs::PlantChart;
-use crate::Message;
 use iced::widget::{container, row, Button, Column, Container, Row, Text};
 use iced::{Element, Length};
+use iced::alignment::{Horizontal, Vertical};
 use plotters::prelude::*;
 use plotters_iced::{Chart, ChartBuilder, ChartWidget, DrawingBackend};
+use crate::{Icon, Message, Tab};
+use iced_aw::tab_bar::TabLabel;
+
+
+#[derive(Debug, Clone)]
+pub enum DetailMessage{
+    Plant,
+    Graph,
+}
 
 pub(crate) struct DetailPage;
 
-impl<Message> Chart<Message> for DetailPage {
-    type State = ();
-    fn build_chart<DB: DrawingBackend>(&self, _state: &Self::State, mut builder: ChartBuilder<DB>) {
-        let first_chart: PlantChart = PlantChart::new(vec![1, 2, 3, 4], vec![8, 2, 3, 4]);
-        let mut chart = builder
-            .build_cartesian_2d(
-                0..*first_chart.x.last().unwrap(),
-                0..*first_chart.y.last().unwrap(),
-            )
-            .unwrap();
-        chart
-            .draw_series(LineSeries::new(
-                first_chart
-                    .x
-                    .iter()
-                    .zip(first_chart.y.iter())
-                    .map(|(x, y)| (*x, *y)),
-                &RED,
-            ))
-            .unwrap()
-            .label("First Chart")
-            .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], RED));
-        chart.configure_mesh().draw().expect("failed to draw mesh");
-        chart
-            .configure_series_labels()
-            .legend_area_size(50)
-            .border_style(BLACK)
-            .background_style(WHITE.mix(0.8))
-            .position(SeriesLabelPosition::UpperLeft)
-            .label_font("Hectic")
-            .draw()
-            .unwrap();
+impl DetailPage {
+    pub fn new() -> DetailPage {
+        DetailPage
+    }
+
+    pub fn update(&mut self, message: DetailMessage) {
+        match message {
+            DetailMessage::Plant => {println!("Plant")},
+            DetailMessage::Graph => {println!("Graph")},
+        }
     }
 }
 
-impl DetailPage {
-    pub(crate) fn view(&self) -> Element<Message> {
-        let chart: Element<Message> = ChartWidget::new(self)
+
+
+
+impl Tab for DetailPage {
+    type Message = Message;
+
+    fn title(&self) -> String {
+        String::from("Detail")
+    }
+
+    fn tab_label(&self) -> TabLabel {
+        TabLabel::IconText(Icon::Detailpage.into(), self.title())
+    }
+
+    fn content(&self) -> Element<'_, Self::Message> {
+
+        let text: Element<'_, DetailMessage> = Text::new("This is the Detail Page").into();
+        let graphs = Row::new().push(text);
+
+        let content: Element<'_, DetailMessage> = Container::new(Text::new("This is the Detail Page"))
             .width(Length::Fill)
             .height(Length::Fill)
+            .align_x(Horizontal::Center)
+            .align_y(Vertical::Center)
             .into();
-        let text = Text::new("This is the Detail Page");
-        let graphs = row![chart, text];
-        container(graphs)
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .center_x()
-            .center_y()
-            .into()
+
+        content.map(Message::Detail)
     }
 }
