@@ -46,9 +46,8 @@ impl Tab for DetailPage {
     fn content(&self) -> Element<'_, Self::Message> {
 
         let text: Element<'_, DetailMessage> = Text::new("This is the Detail Page").into();
-        let graphs = Row::new().push(text);
 
-        let content: Element<'_, DetailMessage> = Container::new(Text::new("This is the Detail Page"))
+        let content: Element<'_, DetailMessage> = Container::new(Row::new().push(text))
             .width(Length::Fill)
             .height(Length::Fill)
             .align_x(Horizontal::Center)
