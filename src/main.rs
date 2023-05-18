@@ -1,25 +1,24 @@
 mod graphs;
-use color_eyre::owo_colors::OwoColorize;
 use crate::graphs::PlantChart;
-use iced::widget::vertical_slider::draw;
-use iced::{Element, Length, Sandbox, Settings, Font};
-use iced::Background::Color;
+use color_eyre::owo_colors::OwoColorize;
 use iced::alignment::{Horizontal, Vertical};
-use iced::widget::{button, Button, Column, Container, Row, Text, container, row};
+use iced::widget::vertical_slider::draw;
+use iced::widget::{button, container, row, Button, Column, Container, Row, Text};
+use iced::Background::Color;
+use iced::{Element, Font, Length, Sandbox, Settings};
+use iced_aw::style::TabBarStyles;
+use iced_aw::{TabBar, TabLabel, Tabs};
 use plotters::coord::types::RangedCoordf32;
 use plotters::prelude::*;
 use plotters_iced::{Chart, ChartBuilder, ChartWidget, DrawingBackend};
-use iced_aw::{TabBar, TabLabel, Tabs};
-use iced_aw::style::TabBarStyles;
 mod home;
-use crate::home::{HomePage, HomeMessage};
+use crate::home::{HomeMessage, HomePage};
 mod detail;
-use crate::detail::{DetailPage, DetailMessage};
+use crate::detail::{DetailMessage, DetailPage};
 mod login;
 use crate::login::{LoginMessage, LoginPage};
 mod settings;
 use settings::{SettingsMessage, SettingsTab, TabBarPosition};
-
 
 const HEADER_SIZE: u16 = 32;
 const TAB_PADDING: u16 = 16;
@@ -50,7 +49,6 @@ fn main() {
     Plantbuddy::run(Settings::default()).unwrap();
 }
 
-
 struct Plantbuddy {
     active_tab: usize,
     home_page: HomePage,
@@ -65,7 +63,7 @@ pub enum Message {
     Login(LoginMessage),
     Detail(DetailMessage),
     Home(HomeMessage),
-   Settings(SettingsMessage),
+    Settings(SettingsMessage),
 }
 
 impl Sandbox for Plantbuddy {
@@ -93,7 +91,6 @@ impl Sandbox for Plantbuddy {
             Message::Detail(message) => self.detail_page.update(message),
             Message::Settings(message) => self.settings_tab.update(message),
         }
-
     }
 
     fn view(&self) -> Element<Self::Message> {
