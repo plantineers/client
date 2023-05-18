@@ -2,10 +2,10 @@ mod graphs;
 use color_eyre::owo_colors::OwoColorize;
 use crate::graphs::PlantChart;
 use iced::widget::vertical_slider::draw;
-use iced::{Element, Length, Sandbox, Settings, Font};
+use iced::{Element, Length, Sandbox, Settings, Font, window};
 use iced::Background::Color;
 use iced::alignment::{Horizontal, Vertical};
-use iced::widget::{button, Button, Column, Container, Row, Text, container, row};
+use iced::widget::{button, Button, Column, Container, Row, Text, container, row, Image};
 use plotters::coord::types::RangedCoordf32;
 use plotters::prelude::*;
 use plotters_iced::{Chart, ChartBuilder, ChartWidget, DrawingBackend};
@@ -18,7 +18,12 @@ use crate::detail::{DetailPage, DetailMessage};
 mod login;
 use crate::login::{LoginMessage, LoginPage};
 mod settings;
+mod logout;
+
+use crate::logout::{LogoutTab, LogoutMessage};
+
 use settings::{SettingsMessage, SettingsTab, TabBarPosition};
+
 
 
 const HEADER_SIZE: u16 = 32;
@@ -34,6 +39,7 @@ enum Icon {
     Homescreen,
     Detailpage,
     CogAlt,
+    Logout,
 }
 
 impl From<Icon> for char {
@@ -43,20 +49,32 @@ impl From<Icon> for char {
             Icon::CogAlt => '\u{e8b8}',
             Icon::Homescreen => '\u{e88a}',
             Icon::Detailpage => '\u{e85c}',
+            Icon::Logout => '\u{e9ba}',
         }
     }
 }
 fn main() {
-    Plantbuddy::run(Settings::default()).unwrap();
+    env_logger::init();
+    Plantbuddy::run(Settings {
+        antialiasing: false,
+        window: window::Settings {
+            size: (1280, 720),
+            position: window::Position::Centered,
+            ..window::Settings::default()
+        },
+        ..Settings::default()
+    }).unwrap();
 }
 
 
 struct Plantbuddy {
+    is_logged_in: bool,
     active_tab: usize,
     home_page: HomePage,
     detail_page: DetailPage,
     login_page: LoginPage,
     settings_tab: SettingsTab,
+    logout_tab: LogoutTab,
 }
 
 #[derive(Debug, Clone)]
@@ -66,6 +84,7 @@ pub enum Message {
     Detail(DetailMessage),
     Home(HomeMessage),
    Settings(SettingsMessage),
+    Logout(LogoutMessage),
 }
 
 impl Sandbox for Plantbuddy {
@@ -73,11 +92,13 @@ impl Sandbox for Plantbuddy {
 
     fn new() -> Self {
         Plantbuddy {
+            is_logged_in: false,
             active_tab: 0,
             home_page: HomePage::new(),
             detail_page: DetailPage::new(),
             login_page: LoginPage::new(),
             settings_tab: SettingsTab::new(),
+            logout_tab: LogoutTab::new(),
         }
     }
 
@@ -88,15 +109,28 @@ impl Sandbox for Plantbuddy {
     fn update(&mut self, message: Self::Message) {
         match message {
             Message::TabSelected(selected) => self.active_tab = selected,
-            Message::Login(message) => self.login_page.update(message),
+            Message::Login(message) => {
+                let login_successful = self.login_page.update(message);
+
+                if login_successful {
+                    self.is_logged_in = true;
+                }
+            }
             Message::Home(message) => self.home_page.update(message),
             Message::Detail(message) => self.detail_page.update(message),
             Message::Settings(message) => self.settings_tab.update(message),
+            Message::Logout(message) => {
+                self.logout_tab.update(message.clone());
+                if let LogoutMessage::OkButtonPressed = message {
+                    self.is_logged_in = false;
+                }
+            },
+        }
         }
 
-    }
 
     fn view(&self) -> Element<Self::Message> {
+        if self.is_logged_in {
         let position = self
             .settings_tab
             .settings()
@@ -111,7 +145,8 @@ impl Sandbox for Plantbuddy {
         Tabs::new(self.active_tab, Message::TabSelected)
             .push(self.home_page.tab_label(), self.home_page.view())
             .push(self.detail_page.tab_label(), self.detail_page.view())
-            .push(self.login_page.tab_label(), self.login_page.view())
+            //.push(self.login_page.tab_label(), self.login_page.view())
+            .push(self.logout_tab.tab_label(), self.logout_tab.view())
             .push(self.settings_tab.tab_label(), self.settings_tab.view())
             .tab_bar_style(theme)
             .icon_font(ICON_FONT)
@@ -120,6 +155,12 @@ impl Sandbox for Plantbuddy {
                 TabBarPosition::Bottom => iced_aw::TabBarPosition::Bottom,
             })
             .into()
+    }
+        else {
+            self.login_page.view()
+        }
+
+
     }
 }
 
