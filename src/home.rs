@@ -1,4 +1,4 @@
-use crate::graphs::PlantChart;
+use crate::graphs::PlantCharts;
 use crate::{Icon, Message, Tab};
 use iced::alignment::{Horizontal, Vertical};
 use iced::widget::vertical_slider::draw;
@@ -43,7 +43,7 @@ impl Tab for HomePage {
 
     fn content(&self) -> Element<'_, Self::Message> {
         let text: Element<'_, HomeMessage> = Text::new("This is the Home Page").into();
-        let binding = PlantChart::test(HomeMessage::Graph);
+        let binding = PlantCharts::test(HomeMessage::Graph);
         let chart = ChartWidget::new(binding);
         let row = row!(text, chart);
         let content: Element<'_, HomeMessage> = Container::new(row)

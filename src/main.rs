@@ -1,5 +1,5 @@
 mod graphs;
-use crate::graphs::PlantChart;
+use crate::graphs::PlantCharts;
 use color_eyre::owo_colors::OwoColorize;
 use iced::alignment::{Horizontal, Vertical};
 use iced::widget::vertical_slider::draw;
