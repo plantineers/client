@@ -28,7 +28,7 @@ impl LoginPage {
         }
     }
 
-    pub fn update(&mut self, message: LoginMessage) {
+    pub fn update(&mut self, message: LoginMessage) -> bool {
         match message {
             LoginMessage::UsernameChanged(value) => self.username = value,
             LoginMessage::PasswordChanged(value) => self.password = value,
@@ -36,8 +36,17 @@ impl LoginPage {
                 self.username = String::new();
                 self.password = String::new();
             }
-            LoginMessage::LoginPressed => {}
+            LoginMessage::LoginPressed => {
+                if self.password == "1234" && self.username == "admin"{
+                    println!("Login successful");
+                    return true;
+                } else {
+                    println!("Login failed");
+                    return false;
+                }
+            }
         }
+        false
     }
 }
 
