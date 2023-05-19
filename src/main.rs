@@ -4,7 +4,6 @@ use color_eyre::owo_colors::OwoColorize;
 use iced::alignment::{Horizontal, Vertical};
 use iced::widget::vertical_slider::draw;
 use iced::widget::{button, container, row, Button, Column, Container, Image, Row, Text};
-use iced::Background::Color;
 use iced::{window, Element, Font, Length, Sandbox, Settings};
 use iced_aw::style::TabBarStyles;
 use iced_aw::{TabBar, TabLabel, Tabs};
