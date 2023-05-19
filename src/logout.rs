@@ -1,5 +1,5 @@
-use color_eyre::owo_colors::OwoColorize;
 use crate::{Icon, Message, Tab};
+use color_eyre::owo_colors::OwoColorize;
 use iced::{
     alignment::{Horizontal, Vertical},
     widget::{Button, Column, Container, Row, Text, TextInput},
@@ -56,15 +56,15 @@ impl Tab for LogoutTab {
 
     fn content(&self) -> Element<'_, Self::Message> {
         let modal_content = Container::new(
-                Button::new(
-                    Text::new("Von Plantbuddy abmelden")
-                        .size(30)
-                        .height(Length::Fill)
-                        .width(Length::Fill),
-                )
-                .height(Length::from(100))
-                .width(Length::from(200))
-                .on_press(LogoutMessage::OpenModal),
+            Button::new(
+                Text::new("Von Plantbuddy abmelden")
+                    .size(30)
+                    .height(Length::Fill)
+                    .width(Length::Fill),
+            )
+            .height(Length::from(100))
+            .width(Length::from(200))
+            .on_press(LogoutMessage::OpenModal),
         )
         .width(Length::Fill)
         .height(Length::Fill)
@@ -74,7 +74,9 @@ impl Tab for LogoutTab {
         let content: Element<'_, LogoutMessage> =
             Modal::new(self.show_modal, modal_content, || {
                 Card::new(
-                    Text::new("Abmeldung").size(40).horizontal_alignment(Horizontal::Center),
+                    Text::new("Abmeldung")
+                        .size(40)
+                        .horizontal_alignment(Horizontal::Center),
                     Text::new("Wollen Sie sich wirklich von System abmelden?").size(30),
                 )
                 .foot(
@@ -84,15 +86,21 @@ impl Tab for LogoutTab {
                         .width(Length::Fill)
                         .push(
                             Button::new(
-                                Text::new("Abbrechen").horizontal_alignment(Horizontal::Center).size(30),
+                                Text::new("Abbrechen")
+                                    .horizontal_alignment(Horizontal::Center)
+                                    .size(30),
                             )
                             .width(Length::Fill)
                             .on_press(LogoutMessage::CancelButtonPressed),
                         )
                         .push(
-                            Button::new(Text::new("Ja").horizontal_alignment(Horizontal::Center).size(30))
-                                .width(Length::Fill)
-                                .on_press(LogoutMessage::OkButtonPressed),
+                            Button::new(
+                                Text::new("Ja")
+                                    .horizontal_alignment(Horizontal::Center)
+                                    .size(30),
+                            )
+                            .width(Length::Fill)
+                            .on_press(LogoutMessage::OkButtonPressed),
                         ),
                 )
                 .max_width(500.0)

@@ -1,15 +1,14 @@
 use crate::graphs::PlantChart;
+use crate::{Icon, Message, Tab};
+use iced::alignment::{Horizontal, Vertical};
 use iced::widget::{container, row, Button, Column, Container, Row, Text};
 use iced::{Element, Length};
-use iced::alignment::{Horizontal, Vertical};
+use iced_aw::tab_bar::TabLabel;
 use plotters::prelude::*;
 use plotters_iced::{Chart, ChartBuilder, ChartWidget, DrawingBackend};
-use crate::{Icon, Message, Tab};
-use iced_aw::tab_bar::TabLabel;
-
 
 #[derive(Debug, Clone)]
-pub enum DetailMessage{
+pub enum DetailMessage {
     Plant,
     Graph,
 }
@@ -23,14 +22,15 @@ impl DetailPage {
 
     pub fn update(&mut self, message: DetailMessage) {
         match message {
-            DetailMessage::Plant => {println!("Plant")},
-            DetailMessage::Graph => {println!("Graph")},
+            DetailMessage::Plant => {
+                println!("Plant")
+            }
+            DetailMessage::Graph => {
+                println!("Graph")
+            }
         }
     }
 }
-
-
-
 
 impl Tab for DetailPage {
     type Message = Message;
@@ -44,7 +44,6 @@ impl Tab for DetailPage {
     }
 
     fn content(&self) -> Element<'_, Self::Message> {
-
         let text: Element<'_, DetailMessage> = Text::new("This is the Detail Page").into();
 
         let content: Element<'_, DetailMessage> = Container::new(Row::new().push(text))
