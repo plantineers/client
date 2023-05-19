@@ -16,7 +16,7 @@ use crate::home::{HomePage, HomeMessage};
 mod detail;
 use crate::detail::{DetailPage, DetailMessage};
 mod login;
-use crate::login::{LoginMessage, LoginPage};
+use crate::login::{LoginMessage, LoginPage, PlantBuddyRole};
 mod settings;
 mod logout;
 
@@ -75,6 +75,7 @@ struct Plantbuddy {
     login_page: LoginPage,
     settings_tab: SettingsTab,
     logout_tab: LogoutTab,
+    role: PlantBuddyRole,
 }
 
 #[derive(Debug, Clone)]
@@ -99,6 +100,7 @@ impl Sandbox for Plantbuddy {
             login_page: LoginPage::new(),
             settings_tab: SettingsTab::new(),
             logout_tab: LogoutTab::new(),
+            role: PlantBuddyRole::NotLoggedIn,
         }
     }
 
@@ -111,10 +113,18 @@ impl Sandbox for Plantbuddy {
             Message::TabSelected(selected) => self.active_tab = selected,
             Message::Login(message) => {
                 let login_successful = self.login_page.update(message);
-
-                if login_successful {
-                    self.is_logged_in = true;
+                match login_successful {
+                    PlantBuddyRole::Admin => {
+                        self.is_logged_in = true;
+                        self.role = PlantBuddyRole::Admin;
+                    }
+                    PlantBuddyRole::User => {
+                        self.is_logged_in = true;
+                        self.role = PlantBuddyRole::User;
+                    },
+                    PlantBuddyRole::NotLoggedIn => {}
                 }
+
             }
             Message::Home(message) => self.home_page.update(message),
             Message::Detail(message) => self.detail_page.update(message),
@@ -123,6 +133,7 @@ impl Sandbox for Plantbuddy {
                 self.logout_tab.update(message.clone());
                 if let LogoutMessage::OkButtonPressed = message {
                     self.is_logged_in = false;
+                    self.role = PlantBuddyRole::NotLoggedIn;
                 }
             },
         }

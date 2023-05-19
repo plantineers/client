@@ -108,5 +108,5 @@ impl Tab for LogoutTab {
     }
 }
 fn logout() {
-    info!("userr logged out");
+    info!("user logged out");
 }
