@@ -39,6 +39,8 @@ impl LoginPage {
             LoginMessage::LoginPressed => {
                 if self.password == "1234" && self.username == "admin"{
                     println!("Login successful");
+                    self.username = String::new();
+                    self.password = String::new();
                     return true;
                 } else {
                     println!("Login failed");
