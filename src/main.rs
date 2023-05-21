@@ -157,18 +157,23 @@ impl Sandbox for Plantbuddy {
                 .tab_bar_theme
                 .unwrap_or_default();
 
-            Tabs::new(self.active_tab, Message::TabSelected)
+            let mut tabs = Tabs::new(self.active_tab, Message::TabSelected)
                 .push(self.home_page.tab_label(), self.home_page.view())
                 .push(self.detail_page.tab_label(), self.detail_page.view())
                 .push(self.settings_tab.tab_label(), self.settings_tab.view())
-                .push(self.management_tab.tab_label(), self.management_tab.view())
-                .push(self.logout_tab.tab_label(), self.logout_tab.view())
                 .tab_bar_style(theme)
-                .icon_font(ICON_FONT)
-                .tab_bar_position(match position {
-                    TabBarPosition::Top => iced_aw::TabBarPosition::Top,
-                    TabBarPosition::Bottom => iced_aw::TabBarPosition::Bottom,
-                })
+                .icon_font(ICON_FONT);
+
+            if let PlantBuddyRole::Admin = self.role {
+                tabs = tabs.push(self.management_tab.tab_label(), self.management_tab.view());
+            }
+
+            tabs = tabs.push(self.logout_tab.tab_label(), self.logout_tab.view());
+
+            tabs.tab_bar_position(match position {
+                TabBarPosition::Top => iced_aw::TabBarPosition::Top,
+                TabBarPosition::Bottom => iced_aw::TabBarPosition::Bottom,
+            })
                 .into()
         } else {
             self.login_page.view()
