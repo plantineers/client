@@ -25,15 +25,15 @@ pub enum PlantBuddyRole {
     User,
     NotLoggedIn,
 }
-pub struct LoginPage {
+pub struct LoginTab {
     username: String,
     password: String,
     login_failed: bool,
 }
 
-impl LoginPage {
+impl LoginTab {
     pub fn new() -> Self {
-        LoginPage {
+        LoginTab {
             username: String::new(),
             password: String::new(),
             login_failed: false,
@@ -78,7 +78,7 @@ impl LoginPage {
     }
 }
 
-impl Tab for LoginPage {
+impl Tab for LoginTab {
     type Message = Message;
 
     fn title(&self) -> String {

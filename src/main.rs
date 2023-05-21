@@ -15,9 +15,11 @@ use crate::home::{HomeMessage, HomePage};
 mod detail;
 use crate::detail::{DetailMessage, DetailPage};
 mod login;
-use crate::login::{LoginMessage, LoginPage, PlantBuddyRole};
+use crate::login::{LoginMessage, LoginTab, PlantBuddyRole};
 mod logout;
 mod settings;
+mod management;
+use crate::management::{ManagementMessage, ManagementTab};
 
 use crate::logout::{LogoutMessage, LogoutTab};
 
@@ -37,6 +39,7 @@ enum Icon {
     Detailpage,
     CogAlt,
     Logout,
+    Management,
 }
 
 impl From<Icon> for char {
@@ -47,6 +50,7 @@ impl From<Icon> for char {
             Icon::Homescreen => '\u{e88a}',
             Icon::Detailpage => '\u{e85c}',
             Icon::Logout => '\u{e9ba}',
+            Icon::Management => '\u{f02e}',
         }
     }
 }
@@ -70,9 +74,10 @@ struct Plantbuddy {
     active_tab: usize,
     home_page: HomePage,
     detail_page: DetailPage,
-    login_page: LoginPage,
+    login_page: LoginTab,
     settings_tab: SettingsTab,
     logout_tab: LogoutTab,
+    management_tab: ManagementTab,
     role: PlantBuddyRole,
 }
 
@@ -84,6 +89,7 @@ pub enum Message {
     Home(HomeMessage),
     Settings(SettingsMessage),
     Logout(LogoutMessage),
+    Management(ManagementMessage),
 }
 
 impl Sandbox for Plantbuddy {
@@ -95,9 +101,10 @@ impl Sandbox for Plantbuddy {
             active_tab: 0,
             home_page: HomePage::new(),
             detail_page: DetailPage::new(),
-            login_page: LoginPage::new(),
+            login_page: LoginTab::new(),
             settings_tab: SettingsTab::new(),
             logout_tab: LogoutTab::new(),
+            management_tab: ManagementTab::new(),
             role: PlantBuddyRole::NotLoggedIn,
         }
     }
@@ -131,7 +138,8 @@ impl Sandbox for Plantbuddy {
                     self.is_logged_in = false;
                     self.role = PlantBuddyRole::NotLoggedIn;
                 }
-            }
+            },
+            Message::Management(message) => self.management_tab.update(message),
         }
 
     }
@@ -153,6 +161,7 @@ impl Sandbox for Plantbuddy {
                 .push(self.home_page.tab_label(), self.home_page.view())
                 .push(self.detail_page.tab_label(), self.detail_page.view())
                 .push(self.settings_tab.tab_label(), self.settings_tab.view())
+                .push(self.management_tab.tab_label(), self.management_tab.view())
                 .push(self.logout_tab.tab_label(), self.logout_tab.view())
                 .tab_bar_style(theme)
                 .icon_font(ICON_FONT)
