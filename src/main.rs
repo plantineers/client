@@ -1,5 +1,5 @@
 mod graphs;
-use crate::graphs::PlantChart;
+use crate::graphs::PlantCharts;
 use color_eyre::owo_colors::OwoColorize;
 use iced::alignment::{Horizontal, Vertical};
 use iced::widget::vertical_slider::draw;
@@ -7,9 +7,12 @@ use iced::widget::{button, container, row, Button, Column, Container, Image, Row
 use iced::{window, Element, Font, Length, Sandbox, Settings};
 use iced_aw::style::TabBarStyles;
 use iced_aw::{TabBar, TabLabel, Tabs};
+use iced::Background::Color;
 use plotters::coord::types::RangedCoordf32;
 use plotters::prelude::*;
 use plotters_iced::{Chart, ChartBuilder, ChartWidget, DrawingBackend};
+use iced_aw::{TabBar, TabLabel, Tabs};
+use iced_aw::style::TabBarStyles;
 mod home;
 use crate::home::{HomeMessage, HomePage};
 mod detail;
@@ -63,6 +66,7 @@ fn main() {
     })
     .unwrap();
 }
+
 
 struct Plantbuddy {
     is_logged_in: bool,
@@ -133,6 +137,7 @@ impl Sandbox for Plantbuddy {
                 }
             }
         }
+
     }
 
     fn view(&self) -> Element<Self::Message> {
