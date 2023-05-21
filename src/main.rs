@@ -28,8 +28,8 @@ use settings::{SettingsMessage, SettingsTab, TabBarPosition};
 const HEADER_SIZE: u16 = 32;
 const TAB_PADDING: u16 = 16;
 
-const ICON_FONT: Font = iced::Font::External {
-    name: "Icons",
+const EXTERNAL_ICON_FONT: Font = iced::Font::External {
+    name: "External Icons",
     bytes: include_bytes!("../fonts/MaterialIcons-Regular.ttf"),
 };
 
@@ -40,6 +40,7 @@ enum Icon {
     CogAlt,
     Logout,
     Management,
+    X
 }
 
 impl From<Icon> for char {
@@ -51,6 +52,7 @@ impl From<Icon> for char {
             Icon::Detailpage => '\u{e85c}',
             Icon::Logout => '\u{e9ba}',
             Icon::Management => '\u{f02e}',
+            Icon::X => '\u{e5cd}',
         }
     }
 }
@@ -97,7 +99,8 @@ impl Sandbox for Plantbuddy {
 
     fn new() -> Self {
         Plantbuddy {
-            is_logged_in: false,
+            // Fixme: This should be false in production
+            is_logged_in: true,
             active_tab: 0,
             home_page: HomePage::new(),
             detail_page: DetailPage::new(),
@@ -162,7 +165,7 @@ impl Sandbox for Plantbuddy {
                 .push(self.detail_page.tab_label(), self.detail_page.view())
                 .push(self.settings_tab.tab_label(), self.settings_tab.view())
                 .tab_bar_style(theme)
-                .icon_font(ICON_FONT);
+                .icon_font(EXTERNAL_ICON_FONT);
 
             if let PlantBuddyRole::Admin = self.role {
                 tabs = tabs.push(self.management_tab.tab_label(), self.management_tab.view());
