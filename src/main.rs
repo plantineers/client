@@ -4,10 +4,15 @@ use iced::alignment::{Horizontal, Vertical};
 use iced::widget::vertical_slider::draw;
 use iced::widget::{button, container, row, Button, Column, Container, Image, Row, Text};
 use iced::{window, Element, Font, Length, Sandbox, Settings, Theme, theme, color};
+use iced::alignment::{Horizontal, Vertical};
+use iced::theme::{Custom, Palette};
+use iced::widget::vertical_slider::draw;
+use iced::widget::{button, container, row, Button, Column, Container, Row, Text};
+use iced::{window, Background, Element, Font, Length, Sandbox, Settings, Theme};
 use iced_aw::style::TabBarStyles;
 use iced_aw::{TabBar, TabLabel, Tabs};
-use iced::Background::Color;
-use iced::theme::Svg::Default;
+
+use iced_core::Color;
 use plotters::coord::types::RangedCoordf32;
 use plotters::prelude::*;
 use plotters_iced::{Chart, ChartBuilder, ChartWidget, DrawingBackend};
@@ -102,7 +107,6 @@ impl Sandbox for Plantbuddy {
             role: PlantBuddyRole::NotLoggedIn,
         }
     }
-
     fn title(&self) -> String {
         String::from("Plantbuddy")
     }
@@ -167,9 +171,17 @@ impl Sandbox for Plantbuddy {
             self.login_page.view()
         }
     }
+
     fn theme(&self) -> Theme {
-        let mut theme = Theme::Dark;
-        theme
+        let palette = Palette {
+            background: Color::from_rgb(5.0 / 255.0, 59.0 / 255.0, 6.0 / 255.0),
+            text: Color::from_rgb(252.0 / 255.0, 247.0 / 255.0, 1.0),
+            primary: Color::from_rgb(0.11, 0.42, 0.87),
+            success: Color::from_rgb(13.0 / 255.0, 171.0 / 255.0, 118.0 / 255.0),
+            danger: Color::from_rgb(214.0 / 255.0, 73.0 / 255.0, 51.0 / 255.0),
+        };
+        let custom = Custom::new(palette);
+        Theme::Custom(Box::new(custom))
     }
 }
 
