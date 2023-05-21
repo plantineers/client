@@ -3,16 +3,10 @@ use crate::graphs::PlantCharts;
 use iced::alignment::{Horizontal, Vertical};
 use iced::widget::vertical_slider::draw;
 use iced::widget::{button, container, row, Button, Column, Container, Image, Row, Text};
-use iced::{window, Element, Font, Length, Sandbox, Settings, Theme, theme, color};
-use iced::alignment::{Horizontal, Vertical};
 use iced::theme::{Custom, Palette};
-use iced::widget::vertical_slider::draw;
-use iced::widget::{button, container, row, Button, Column, Container, Row, Text};
-use iced::{window, Background, Element, Font, Length, Sandbox, Settings, Theme};
+use iced::{window, Background, Element, Font, Length, Sandbox, Settings, Theme, Color};
 use iced_aw::style::TabBarStyles;
 use iced_aw::{TabBar, TabLabel, Tabs};
-
-use iced_core::Color;
 use plotters::coord::types::RangedCoordf32;
 use plotters::prelude::*;
 use plotters_iced::{Chart, ChartBuilder, ChartWidget, DrawingBackend};
