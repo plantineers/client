@@ -1,7 +1,7 @@
 use crate::graphs::{PlantChart, PlantCharts};
 use crate::{Icon, Message, Tab};
 use iced::alignment::{Horizontal, Vertical};
-use iced::widget::{container, row, Button, Column, Container, Row, Text,column};
+use iced::widget::{ container, row, Button, Column, Container, Row, Text};
 use iced::{Element, Length};
 use iced_aw::tab_bar::TabLabel;
 use plotters::prelude::*;

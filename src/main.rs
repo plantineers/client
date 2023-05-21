@@ -11,8 +11,6 @@ use iced::Background::Color;
 use plotters::coord::types::RangedCoordf32;
 use plotters::prelude::*;
 use plotters_iced::{Chart, ChartBuilder, ChartWidget, DrawingBackend};
-use iced_aw::{TabBar, TabLabel, Tabs};
-use iced_aw::style::TabBarStyles;
 mod home;
 use crate::home::{HomeMessage, HomePage};
 mod detail;
