@@ -1,13 +1,13 @@
 mod graphs;
 use crate::graphs::PlantCharts;
-use color_eyre::owo_colors::OwoColorize;
 use iced::alignment::{Horizontal, Vertical};
 use iced::widget::vertical_slider::draw;
 use iced::widget::{button, container, row, Button, Column, Container, Image, Row, Text};
-use iced::{window, Element, Font, Length, Sandbox, Settings};
+use iced::{window, Element, Font, Length, Sandbox, Settings, Theme, theme, color};
 use iced_aw::style::TabBarStyles;
 use iced_aw::{TabBar, TabLabel, Tabs};
 use iced::Background::Color;
+use iced::theme::Svg::Default;
 use plotters::coord::types::RangedCoordf32;
 use plotters::prelude::*;
 use plotters_iced::{Chart, ChartBuilder, ChartWidget, DrawingBackend};
@@ -154,7 +154,6 @@ impl Sandbox for Plantbuddy {
             Tabs::new(self.active_tab, Message::TabSelected)
                 .push(self.home_page.tab_label(), self.home_page.view())
                 .push(self.detail_page.tab_label(), self.detail_page.view())
-                //.push(self.login_page.tab_label(), self.login_page.view())
                 .push(self.settings_tab.tab_label(), self.settings_tab.view())
                 .push(self.logout_tab.tab_label(), self.logout_tab.view())
                 .tab_bar_style(theme)
@@ -167,6 +166,10 @@ impl Sandbox for Plantbuddy {
         } else {
             self.login_page.view()
         }
+    }
+    fn theme(&self) -> Theme {
+        let mut theme = Theme::Dark;
+        theme
     }
 }
 

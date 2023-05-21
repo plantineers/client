@@ -1,12 +1,8 @@
 use crate::{Icon, Message, Tab};
 use color_eyre::owo_colors::OwoColorize;
-use iced::{
-    alignment::{Horizontal, Vertical},
-    widget::{Button, Column, Container, Row, Text, TextInput},
-    Alignment, Element, Length,
-};
+use iced::{alignment::{Horizontal, Vertical}, widget::{Button, Column, Container, Row, Text, TextInput}, Alignment, Element, Length, theme};
 use iced_aw::tab_bar::TabLabel;
-use iced_aw::{Card, Modal};
+use iced_aw::{Card, Modal, style};
 use log::info;
 
 #[derive(Debug, Clone)]
@@ -99,6 +95,7 @@ impl Tab for LogoutTab {
                                     .horizontal_alignment(Horizontal::Center)
                                     .size(30),
                             )
+                                .style(theme::Button::Destructive)
                             .width(Length::Fill)
                             .on_press(LogoutMessage::OkButtonPressed),
                         ),
