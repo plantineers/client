@@ -1,5 +1,4 @@
 use color_eyre::owo_colors::OwoColorize;
-use iced::{application, color};
 use iced::theme::{self, Theme};
 use iced::widget::{container, Image};
 use iced::Alignment::Center;
@@ -8,6 +7,7 @@ use iced::{
     widget::{Button, Column, Container, Row, Text, TextInput},
     Alignment, Color, Element, Length,
 };
+use iced::{application, color};
 use iced_aw::tab_bar::TabLabel;
 use std::fmt;
 
@@ -20,6 +20,7 @@ pub enum LoginMessage {
     ClearPressed,
     LoginPressed,
 }
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum PlantBuddyRole {
     Admin,
     User,
