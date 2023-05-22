@@ -1,10 +1,10 @@
 mod graphs;
 use crate::graphs::PlantCharts;
 use iced::alignment::{Horizontal, Vertical};
+use iced::theme::{Custom, Palette};
 use iced::widget::vertical_slider::draw;
 use iced::widget::{button, container, row, Button, Column, Container, Image, Row, Text};
-use iced::theme::{Custom, Palette};
-use iced::{window, Background, Element, Font, Length, Sandbox, Settings, Theme, Color};
+use iced::{window, Background, Color, Element, Font, Length, Sandbox, Settings, Theme};
 use iced_aw::style::TabBarStyles;
 use iced_aw::{TabBar, TabLabel, Tabs};
 use plotters::coord::types::RangedCoordf32;
@@ -17,8 +17,8 @@ use crate::detail::{DetailMessage, DetailPage};
 mod login;
 use crate::login::{LoginMessage, LoginTab, PlantBuddyRole};
 mod logout;
-mod settings;
 mod management;
+mod settings;
 use crate::management::{ManagementMessage, ManagementTab};
 
 use crate::logout::{LogoutMessage, LogoutTab};
@@ -40,7 +40,7 @@ enum Icon {
     CogAlt,
     Logout,
     Management,
-    X
+    X,
 }
 
 impl From<Icon> for char {
@@ -69,7 +69,6 @@ fn main() {
     })
     .unwrap();
 }
-
 
 struct Plantbuddy {
     is_logged_in: bool,
@@ -141,10 +140,9 @@ impl Sandbox for Plantbuddy {
                     self.is_logged_in = false;
                     self.role = PlantBuddyRole::NotLoggedIn;
                 }
-            },
+            }
             Message::Management(message) => self.management_tab.update(message),
         }
-
     }
 
     fn view(&self) -> Element<Self::Message> {
@@ -177,7 +175,7 @@ impl Sandbox for Plantbuddy {
                 TabBarPosition::Top => iced_aw::TabBarPosition::Top,
                 TabBarPosition::Bottom => iced_aw::TabBarPosition::Bottom,
             })
-                .into()
+            .into()
         } else {
             self.login_page.view()
         }
