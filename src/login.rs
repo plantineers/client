@@ -75,15 +75,14 @@ impl LoginTab {
 
                 return match role {
                     PlantBuddyRole::Admin | PlantBuddyRole::User => {
-                        println!("Login successful as {}", role);
                         self.username = String::new();
                         self.password = String::new();
                         self.login_failed = false;
                         role
                     }
                     _ => {
-                        println!("Login failed");
                         self.login_failed = true;
+                        //TODO: Show error message
                         role
                     }
                 };
@@ -181,8 +180,7 @@ impl Tab for LoginTab {
 
 fn check_login(username: &str, password: &str) -> PlantBuddyRole {
     let role_future = login(username.to_string(), password.to_string());
-    let role = block_on(role_future);
-    println!("Role: {:?}", role);
+    let role = role_future;
 
     match role {
         Ok(role) => match role {

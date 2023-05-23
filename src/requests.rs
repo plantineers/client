@@ -7,10 +7,11 @@ use tokio::task::spawn_blocking;
 
 const ENDPOINT: &str = "https://pb.mfloto.com/v1/";
 
+#[tokio::main]
 pub async fn login(username: String, password: String) -> Result<PlantBuddyRole, reqwest::Error> {
     let client = reqwest::Client::new();
     let response = client
-        .post(ENDPOINT.to_string() + "user/login")
+        .get(ENDPOINT.to_string() + "user/login")
         .header("X-User-Name", username)
         .header("X-User-Password", password)
         .send()
