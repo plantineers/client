@@ -10,6 +10,7 @@ use iced::{
 };
 use iced::{application, color};
 use iced_aw::tab_bar::TabLabel;
+use serde::Deserialize;
 use std::fmt;
 
 use crate::requests::login;
@@ -22,7 +23,7 @@ pub enum LoginMessage {
     ClearPressed,
     LoginPressed,
 }
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Deserialize)]
 pub enum PlantBuddyRole {
     Admin,
     User,
@@ -82,7 +83,6 @@ impl LoginTab {
                     }
                     _ => {
                         self.login_failed = true;
-                        //TODO: Show error message
                         role
                     }
                 };
@@ -179,8 +179,7 @@ impl Tab for LoginTab {
 }
 
 fn check_login(username: &str, password: &str) -> PlantBuddyRole {
-    let role_future = login(username.to_string(), password.to_string());
-    let role = role_future;
+    let role = login(username.to_string(), password.to_string());
 
     match role {
         Ok(role) => match role {
