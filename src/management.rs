@@ -5,6 +5,7 @@ use iced::widget::{button, container, row, scrollable, Rule};
 use iced::Alignment::Center;
 
 use crate::login::PlantBuddyRole;
+use crate::requests::get_all_users;
 use iced::{
     alignment::{Horizontal, Vertical},
     widget::{radio, Button, Column, Container, Row, Text, TextInput},
@@ -16,6 +17,7 @@ use plotters::coord::types::RangedCoordf32;
 use plotters::prelude::*;
 use plotters_iced::{Chart, ChartBuilder, ChartWidget, DrawingBackend};
 use rand::random;
+use serde::Deserialize;
 
 #[derive(Debug, Clone)]
 pub enum ManagementMessage {
@@ -27,12 +29,12 @@ pub enum ManagementMessage {
     EditUserButton(User),
     EditUser,
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct User {
-    id: u32,
-    name: String,
-    password: String,
-    role: PlantBuddyRole,
+    pub(crate) id: u32,
+    pub(crate) name: String,
+    pub(crate) password: String,
+    pub(crate) role: PlantBuddyRole,
 }
 
 pub(crate) struct ManagementTab {
@@ -67,6 +69,16 @@ impl ManagementTab {
                 self.error_message = String::new();
             }
             ManagementMessage::CreateNewUser => {
+                let users = get_all_users("admin".to_string(), "1234".to_string());
+                match users {
+                    Ok(users) => {
+                        self.users = users;
+                    }
+                    Err(_) => {
+                        println!("Error getting users");
+                    }
+                }
+
                 //Check if username or password is empty
                 if self.editing_user.is_none() {
                     if self.username_input.is_empty() || self.password_input.is_empty() {
@@ -176,13 +188,6 @@ impl Tab for ManagementTab {
                         .width(Length::from(300)),
                 )
                 .push(
-                    Container::new(Text::new("Password"))
-                        .center_x()
-                        .center_y()
-                        .padding(10)
-                        .width(Length::from(200)),
-                )
-                .push(
                     Container::new(Text::new("Role"))
                         .center_x()
                         .center_y()
@@ -208,13 +213,6 @@ impl Tab for ManagementTab {
                         .center_y()
                         .padding(10)
                         .width(Length::from(300)),
-                )
-                .push(
-                    Container::new(Text::new(&user.password))
-                        .center_x()
-                        .center_y()
-                        .padding(10)
-                        .width(Length::from(200)),
                 )
                 .push(
                     Container::new(Text::new(match &user.role {
