@@ -24,7 +24,7 @@ pub async fn login(username: String, password: String) -> Result<PlantBuddyRole,
             let res = response.text().await?;
             let v: Value = serde_json::from_str(&res).unwrap();
             let role_value = v["role"]
-                .as_i64()
+                .as_u64()
                 .ok_or("Role not found or not an integer")
                 .unwrap();
             let role = PlantBuddyRole::try_from(role_value).unwrap();
@@ -38,7 +38,14 @@ pub async fn login(username: String, password: String) -> Result<PlantBuddyRole,
 struct TempUser {
     id: u32,
     name: String,
-    role: i64,
+    role: u64,
+}
+
+#[derive(Deserialize, Debug, Serialize)]
+pub struct TempCreationUser {
+    pub(crate) name: String,
+    pub(crate) password: String,
+    pub(crate) role: u64,
 }
 
 #[tokio::main]
@@ -80,4 +87,74 @@ pub async fn get_all_users(
     }
     print!("{:?}", users);
     Ok(users)
+}
+#[tokio::main]
+pub async fn create_user(
+    username: String,
+    password: String,
+    user: TempCreationUser,
+) -> Result<(), reqwest::Error> {
+    let client = reqwest::Client::new();
+    let json = serde_json::to_string(&user).unwrap();
+    println!("{}", json);
+    let response = client
+        .post(ENDPOINT.to_string() + "user/")
+        .header("X-User-Name", &username)
+        .header("X-User-Password", &password)
+        .json(&user)
+        .send()
+        .await?;
+
+    let result = response.error_for_status_ref().map(|_| ());
+
+    match result {
+        Ok(_) => Ok(()),
+        Err(e) => Err(e),
+    }
+}
+
+#[tokio::main]
+pub async fn delete_user(
+    username: String,
+    password: String,
+    id: u32,
+) -> Result<(), reqwest::Error> {
+    let client = reqwest::Client::new();
+    let response = client
+        .delete(ENDPOINT.to_string() + &format!("user/{}", id))
+        .header("X-User-Name", &username)
+        .header("X-User-Password", &password)
+        .send()
+        .await?;
+
+    let result = response.error_for_status_ref().map(|_| ());
+
+    match result {
+        Ok(_) => Ok(()),
+        Err(e) => Err(e),
+    }
+}
+
+#[tokio::main]
+pub async fn update_user(
+    username: String,
+    password: String,
+    id: u32,
+    user: TempCreationUser,
+) -> Result<(), reqwest::Error> {
+    let client = reqwest::Client::new();
+    let response = client
+        .put(ENDPOINT.to_string() + &format!("user/{}", id))
+        .header("X-User-Name", &username)
+        .header("X-User-Password", &password)
+        .json(&user)
+        .send()
+        .await?;
+
+    let result = response.error_for_status_ref().map(|_| ());
+
+    match result {
+        Ok(_) => Ok(()),
+        Err(e) => Err(e),
+    }
 }

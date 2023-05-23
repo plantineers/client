@@ -10,7 +10,7 @@ use iced::{
 };
 use iced::{application, color};
 use iced_aw::tab_bar::TabLabel;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
 use crate::requests::login;
@@ -30,15 +30,10 @@ pub enum PlantBuddyRole {
     NotLoggedIn,
 }
 
-pub struct LoginTab {
-    username: String,
-    password: String,
-    login_failed: bool,
-}
-impl TryFrom<i64> for PlantBuddyRole {
+impl TryFrom<u64> for PlantBuddyRole {
     type Error = &'static str;
 
-    fn try_from(value: i64) -> Result<Self, Self::Error> {
+    fn try_from(value: u64) -> Result<Self, Self::Error> {
         match value {
             0 => Ok(PlantBuddyRole::Admin),
             1 => Ok(PlantBuddyRole::User),
@@ -47,6 +42,22 @@ impl TryFrom<i64> for PlantBuddyRole {
         }
     }
 }
+
+impl Into<u64> for PlantBuddyRole {
+    fn into(self) -> u64 {
+        match self {
+            PlantBuddyRole::Admin => 0,
+            PlantBuddyRole::User => 1,
+            PlantBuddyRole::NotLoggedIn => 2,
+        }
+    }
+}
+pub struct LoginTab {
+    username: String,
+    password: String,
+    login_failed: bool,
+}
+
 impl LoginTab {
     pub fn new() -> Self {
         LoginTab {

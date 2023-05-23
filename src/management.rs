@@ -2,10 +2,11 @@ use crate::{Icon, Message, Tab};
 
 use iced::widget::vertical_slider::draw;
 use iced::widget::{button, container, row, scrollable, Rule};
-use iced::Alignment::Center;
+use iced::Alignment::{Center, End};
 
 use crate::login::PlantBuddyRole;
-use crate::requests::get_all_users;
+use crate::requests::{create_user, delete_user, get_all_users, update_user, TempCreationUser};
+use iced::widget::slider::update;
 use iced::{
     alignment::{Horizontal, Vertical},
     widget::{radio, Button, Column, Container, Row, Text, TextInput},
@@ -21,13 +22,14 @@ use serde::Deserialize;
 
 #[derive(Debug, Clone)]
 pub enum ManagementMessage {
-    DeleteUser,
+    DeleteUser(u32),
     UsernameChanged(String),
     PasswordChanged(String),
     RoleChanged(PlantBuddyRole),
     CreateNewUser,
     EditUserButton(User),
     EditUser,
+    GetUsers,
 }
 #[derive(Debug, Clone, Deserialize)]
 pub struct User {
@@ -69,57 +71,81 @@ impl ManagementTab {
                 self.error_message = String::new();
             }
             ManagementMessage::CreateNewUser => {
-                let users = get_all_users("admin".to_string(), "1234".to_string());
-                match users {
-                    Ok(users) => {
-                        self.users = users;
-                    }
-                    Err(_) => {
-                        println!("Error getting users");
-                    }
-                }
-
-                //Check if username or password is empty
+                // Check if in editing mode
                 if self.editing_user.is_none() {
+                    // Creation mode
                     if self.username_input.is_empty() || self.password_input.is_empty() {
                         self.error_message = String::from("Username or password is empty");
                         return;
                     }
 
                     // TODO: Await backend answer
-                    self.users.push(User {
-                        id: random(),
+                    let user_to_create = TempCreationUser {
                         name: self.username_input.clone(),
                         password: self.password_input.clone(),
-                        role: self.role_input.clone(),
-                    });
+                        role: self.role_input.clone().into(),
+                    };
+                    let result =
+                        create_user("admin".to_string(), "1234".to_string(), user_to_create);
+
+                    match result {
+                        Ok(_) => {
+                            self.error_message = String::from("User created");
+                            self.username_input.clear();
+                            self.password_input.clear();
+                            self.update(ManagementMessage::GetUsers)
+                        }
+                        Err(e) => {
+                            self.error_message = e.to_string();
+                        }
+                    }
                     self.username_input.clear();
                     self.password_input.clear();
                 } else {
+                    // Editing mode
                     if self.username_input.is_empty() || self.password_input.is_empty() {
                         self.error_message = String::from("Username or password is empty");
                         return;
                     }
-                    let mut users = Vec::new();
-                    for mut user in self.users.clone() {
-                        if user.id == self.editing_user.clone().unwrap().id {
-                            user.name = self.username_input.clone();
-                            user.password = self.password_input.clone();
-                            user.role = self.role_input;
+                    let result = update_user(
+                        "admin".to_string(),
+                        "1234".to_string(),
+                        self.editing_user.clone().unwrap().id,
+                        TempCreationUser {
+                            name: self.username_input.clone(),
+                            password: self.password_input.clone(),
+                            role: self.role_input.clone().into(),
+                        },
+                    );
+                    match result {
+                        Ok(_) => {
+                            self.error_message = format!(
+                                "User with id {} updated",
+                                self.editing_user.clone().unwrap().id
+                            );
+                            self.username_input.clear();
+                            self.password_input.clear();
+                            self.editing_user = None;
+                            self.update(ManagementMessage::GetUsers)
                         }
-                        users.push(user);
+                        Err(e) => {
+                            self.error_message = e.to_string();
+                        }
                     }
-
-                    self.username_input.clear();
-                    self.password_input.clear();
-                    self.users = users;
-                    self.editing_user = None;
                 }
             }
-            ManagementMessage::DeleteUser => {
+            ManagementMessage::DeleteUser(id) => {
                 self.error_message = String::new();
-                // TODO: Await backend answer
-                // Check If user to delete is the current user
+                let result = delete_user("admin".to_string(), "1234".to_string(), id);
+                match result {
+                    Ok(_) => {
+                        self.error_message = format!("User with id {} deleted", id);
+                        self.update(ManagementMessage::GetUsers)
+                    }
+                    Err(e) => {
+                        self.error_message = e.to_string();
+                    }
+                }
             }
             ManagementMessage::RoleChanged(role) => {
                 self.role_input = role;
@@ -134,6 +160,17 @@ impl ManagementTab {
             }
             ManagementMessage::EditUser => {
                 self.error_message = String::new();
+            }
+            ManagementMessage::GetUsers => {
+                let users = get_all_users("admin".to_string(), "1234".to_string());
+                match users {
+                    Ok(users) => {
+                        self.users = users;
+                    }
+                    Err(_) => {
+                        println!("Error getting users");
+                    }
+                }
             }
         }
     }
@@ -169,6 +206,16 @@ impl Tab for ManagementTab {
     }
 
     fn content(&self) -> Element<'_, Self::Message> {
+        let refresh_row = Row::new()
+            .width(Length::from(1100))
+            .align_items(Center)
+            .spacing(20)
+            .push(
+                Button::new("Refresh")
+                    .on_press(ManagementMessage::GetUsers)
+                    .style(iced::theme::Button::Primary),
+            );
+
         let mut user_list = Column::new().width(Length::from(1100)).height(Length::Fill);
         user_list = user_list.push(
             Row::new()
@@ -232,7 +279,8 @@ impl Tab for ManagementTab {
                 ))
                 .push(
                     Container::new(
-                        Button::new(Text::new("Delete")).on_press(ManagementMessage::DeleteUser),
+                        Button::new(Text::new("Delete"))
+                            .on_press(ManagementMessage::DeleteUser(user.clone().id)),
                     )
                     .width(Length::from(100)),
                 );
@@ -281,6 +329,7 @@ impl Tab for ManagementTab {
             );
 
         let content: Element<'_, ManagementMessage> = Column::new()
+            .push(refresh_row)
             .push(scrollable)
             .push(if self.error_message != String::new() {
                 Text::new(&self.error_message).style(Color::from_rgb(1.0, 0.0, 0.0))
