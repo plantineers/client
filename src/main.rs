@@ -18,7 +18,9 @@ mod login;
 use crate::login::{LoginMessage, LoginTab, PlantBuddyRole};
 mod logout;
 mod management;
+mod requests;
 mod settings;
+
 use crate::management::{ManagementMessage, ManagementTab};
 
 use crate::logout::{LogoutMessage, LogoutTab};
@@ -99,7 +101,7 @@ impl Sandbox for Plantbuddy {
     fn new() -> Self {
         Plantbuddy {
             // Fixme: This should be false in production
-            is_logged_in: true,
+            is_logged_in: false,
             active_tab: 0,
             home_page: HomePage::new(),
             detail_page: DetailPage::new(),

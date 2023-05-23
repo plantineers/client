@@ -30,7 +30,7 @@ pub enum ManagementMessage {
 #[derive(Debug, Clone)]
 pub struct User {
     id: u32,
-    username: String,
+    name: String,
     password: String,
     role: PlantBuddyRole,
 }
@@ -77,7 +77,7 @@ impl ManagementTab {
                     // TODO: Await backend answer
                     self.users.push(User {
                         id: random(),
-                        username: self.username_input.clone(),
+                        name: self.username_input.clone(),
                         password: self.password_input.clone(),
                         role: self.role_input.clone(),
                     });
@@ -91,7 +91,7 @@ impl ManagementTab {
                     let mut users = Vec::new();
                     for mut user in self.users.clone() {
                         if user.id == self.editing_user.clone().unwrap().id {
-                            user.username = self.username_input.clone();
+                            user.name = self.username_input.clone();
                             user.password = self.password_input.clone();
                             user.role = self.role_input;
                         }
@@ -117,7 +117,7 @@ impl ManagementTab {
                 self.editing_user = Some(user.clone());
 
                 self.role_input = user.role.clone();
-                self.username_input = user.username.clone();
+                self.username_input = user.name.clone();
                 self.password_input = user.password.clone();
             }
             ManagementMessage::EditUser => {
@@ -203,7 +203,7 @@ impl Tab for ManagementTab {
                         .width(Length::from(50)),
                 )
                 .push(
-                    Container::new(Text::new(&user.username))
+                    Container::new(Text::new(&user.name))
                         .center_x()
                         .center_y()
                         .padding(10)

@@ -1,4 +1,5 @@
 use color_eyre::owo_colors::OwoColorize;
+use iced::futures::executor::block_on;
 use iced::theme::{self, Theme};
 use iced::widget::{container, Image};
 use iced::Alignment::Center;
@@ -11,6 +12,7 @@ use iced::{application, color};
 use iced_aw::tab_bar::TabLabel;
 use std::fmt;
 
+use crate::requests::login;
 use crate::{Icon, Message, Tab};
 
 #[derive(Debug, Clone)]
@@ -26,12 +28,24 @@ pub enum PlantBuddyRole {
     User,
     NotLoggedIn,
 }
+
 pub struct LoginTab {
     username: String,
     password: String,
     login_failed: bool,
 }
+impl TryFrom<i64> for PlantBuddyRole {
+    type Error = &'static str;
 
+    fn try_from(value: i64) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(PlantBuddyRole::Admin),
+            1 => Ok(PlantBuddyRole::User),
+            2 => Ok(PlantBuddyRole::NotLoggedIn),
+            _ => Err("Invalid role"),
+        }
+    }
+}
 impl LoginTab {
     pub fn new() -> Self {
         LoginTab {
@@ -166,13 +180,30 @@ impl Tab for LoginTab {
 }
 
 fn check_login(username: &str, password: &str) -> PlantBuddyRole {
-    return if username == "admin" && password == "1234" {
-        PlantBuddyRole::Admin
-    } else if username == "user" && password == "1234" {
-        PlantBuddyRole::User
-    } else {
-        PlantBuddyRole::NotLoggedIn
-    };
+    let role_future = login(username.to_string(), password.to_string());
+    let role = block_on(role_future);
+    println!("Role: {:?}", role);
+
+    match role {
+        Ok(role) => match role {
+            PlantBuddyRole::Admin => {
+                println!("Login successful as {}", role);
+                role
+            }
+            PlantBuddyRole::User => {
+                println!("Login successful as {}", role);
+                PlantBuddyRole::User
+            }
+            _ => {
+                println!("Login failed");
+                PlantBuddyRole::NotLoggedIn
+            }
+        },
+        Err(e) => {
+            println!("Error: {}", e);
+            PlantBuddyRole::NotLoggedIn
+        }
+    }
 }
 
 impl fmt::Display for PlantBuddyRole {
