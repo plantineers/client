@@ -7,7 +7,7 @@ use tokio::task::spawn_blocking;
 
 const ENDPOINT: &str = "https://pb.mfloto.com/v1/";
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 pub async fn login(username: String, password: String) -> Result<PlantBuddyRole, reqwest::Error> {
     let client = reqwest::Client::new();
     let response = client
@@ -48,7 +48,7 @@ pub struct TempCreationUser {
     pub(crate) role: u64,
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 pub async fn get_all_users(
     username: String,
     password: String,
@@ -88,7 +88,7 @@ pub async fn get_all_users(
     print!("{:?}", users);
     Ok(users)
 }
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 pub async fn create_user(
     username: String,
     password: String,
@@ -113,7 +113,7 @@ pub async fn create_user(
     }
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 pub async fn delete_user(
     username: String,
     password: String,
@@ -135,7 +135,7 @@ pub async fn delete_user(
     }
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 pub async fn update_user(
     username: String,
     password: String,
