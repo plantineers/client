@@ -2,26 +2,26 @@ use crate::login::PlantBuddyRole;
 use crate::management::User;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::hash::Hash;
 use std::ops::Range;
-use tokio::task::spawn_blocking;
 
 const ENDPOINT: &str = "https://pb.mfloto.com/v1/";
-
-#[tokio::main]
-pub async fn login(username: String, password: String) -> Result<PlantBuddyRole, reqwest::Error> {
+pub type RequestResult<T> = Result<T, String>;
+pub async fn login(username: String, password: String) -> RequestResult<PlantBuddyRole> {
     let client = reqwest::Client::new();
     let response = client
         .get(ENDPOINT.to_string() + "user/login")
         .header("X-User-Name", username)
         .header("X-User-Password", password)
         .send()
-        .await?;
+        .await
+        .map_err(|e| e.to_string())?;
 
     let result = response.error_for_status_ref().map(|_| ());
 
     match result {
         Ok(_) => {
-            let res = response.text().await?;
+            let res = response.text().await.map_err(|e| e.to_string())?;
             let v: Value = serde_json::from_str(&res).unwrap();
             let role_value = v["role"]
                 .as_u64()
@@ -30,7 +30,7 @@ pub async fn login(username: String, password: String) -> Result<PlantBuddyRole,
             let role = PlantBuddyRole::try_from(role_value).unwrap();
             Ok(role)
         }
-        Err(e) => Err(e),
+        Err(e) => Err(e.to_string()),
     }
 }
 
@@ -48,7 +48,7 @@ pub struct TempCreationUser {
     pub(crate) role: u64,
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 pub async fn get_all_users(
     username: String,
     password: String,
@@ -88,7 +88,7 @@ pub async fn get_all_users(
     print!("{:?}", users);
     Ok(users)
 }
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 pub async fn create_user(
     username: String,
     password: String,
@@ -113,7 +113,7 @@ pub async fn create_user(
     }
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 pub async fn delete_user(
     username: String,
     password: String,
@@ -135,7 +135,7 @@ pub async fn delete_user(
     }
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 pub async fn update_user(
     username: String,
     password: String,

@@ -4,7 +4,10 @@ use iced::alignment::{Horizontal, Vertical};
 use iced::theme::{Custom, Palette};
 use iced::widget::vertical_slider::draw;
 use iced::widget::{button, container, row, Button, Column, Container, Image, Row, Text};
-use iced::{window, Background, Color, Element, Font, Length, Sandbox, Settings, Theme};
+use iced::{
+    executor, window, Application, Background, Color, Command, Element, Font, Length, Sandbox,
+    Settings, Theme,
+};
 use iced_aw::style::TabBarStyles;
 use iced_aw::{TabBar, TabLabel, Tabs};
 use plotters::coord::types::RangedCoordf32;
@@ -25,6 +28,7 @@ use crate::management::{ManagementMessage, ManagementTab};
 
 use crate::logout::{LogoutMessage, LogoutTab};
 
+use crate::requests::RequestResult;
 use settings::{SettingsMessage, SettingsTab, TabBarPosition};
 
 const HEADER_SIZE: u16 = 32;
@@ -95,43 +99,45 @@ pub enum Message {
     Management(ManagementMessage),
 }
 
-impl Sandbox for Plantbuddy {
+impl Application for Plantbuddy {
     type Message = Message;
+    type Executor = executor::Default;
+    type Flags = ();
+    type Theme = Theme;
 
-    fn new() -> Self {
-        Plantbuddy {
-            // Fixme: This should be false in production
-            is_logged_in: false,
-            active_tab: 0,
-            home_page: HomePage::new(),
-            detail_page: DetailPage::new(),
-            login_page: LoginTab::new(),
-            settings_tab: SettingsTab::new(),
-            logout_tab: LogoutTab::new(),
-            management_tab: ManagementTab::new(),
-            role: PlantBuddyRole::NotLoggedIn,
-        }
+    fn new(_: Self::Flags) -> (Self, Command<Message>) {
+        (
+            Plantbuddy {
+                // Fixme: This should be false in production
+                is_logged_in: false,
+                active_tab: 0,
+                home_page: HomePage::new(),
+                detail_page: DetailPage::new(),
+                login_page: LoginTab::new(),
+                settings_tab: SettingsTab::new(),
+                logout_tab: LogoutTab::new(),
+                management_tab: ManagementTab::new(),
+                role: PlantBuddyRole::NotLoggedIn,
+            },
+            Command::none(),
+        )
+        // We could also return a command here to try to auto-login here
     }
     fn title(&self) -> String {
         String::from("Plantbuddy")
     }
 
-    fn update(&mut self, message: Self::Message) {
+    fn update(&mut self, message: Self::Message) -> Command<Message> {
         match message {
             Message::TabSelected(selected) => self.active_tab = selected,
             Message::Login(message) => {
-                let login_successful = self.login_page.update(message);
-                match login_successful {
-                    PlantBuddyRole::Admin => {
+                if let LoginMessage::Login(result) = &message {
+                    if let RequestResult::Ok(role) = result {
                         self.is_logged_in = true;
-                        self.role = PlantBuddyRole::Admin;
+                        self.role = *role;
                     }
-                    PlantBuddyRole::User => {
-                        self.is_logged_in = true;
-                        self.role = PlantBuddyRole::User;
-                    }
-                    PlantBuddyRole::NotLoggedIn => {}
                 }
+                return self.login_page.update(message).map(Message::Login);
             }
             Message::Home(message) => self.home_page.update(message),
             Message::Detail(message) => self.detail_page.update(message),
@@ -145,6 +151,7 @@ impl Sandbox for Plantbuddy {
             }
             Message::Management(message) => self.management_tab.update(message),
         }
+        Command::none()
     }
 
     fn view(&self) -> Element<Self::Message> {

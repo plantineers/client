@@ -1,23 +1,26 @@
 use color_eyre::owo_colors::OwoColorize;
 use iced::futures::executor::block_on;
+use iced::futures::TryStreamExt;
 use iced::theme::{self, Theme};
 use iced::widget::{container, Image};
 use iced::Alignment::Center;
 use iced::{
     alignment::{Horizontal, Vertical},
     widget::{Button, Column, Container, Row, Text, TextInput},
-    Alignment, Color, Element, Length,
+    Alignment, Application, Color, Command, Element, Length,
 };
 use iced::{application, color};
 use iced_aw::tab_bar::TabLabel;
+use log::{info, log};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-use crate::requests::login;
+use crate::requests::{login, RequestResult};
 use crate::{Icon, Message, Tab};
 
 #[derive(Debug, Clone)]
 pub enum LoginMessage {
+    Login(RequestResult<PlantBuddyRole>),
     UsernameChanged(String),
     PasswordChanged(String),
     ClearPressed,
@@ -67,7 +70,7 @@ impl LoginTab {
         }
     }
 
-    pub fn update(&mut self, message: LoginMessage) -> PlantBuddyRole {
+    pub fn update(&mut self, message: LoginMessage) -> Command<LoginMessage> {
         match message {
             LoginMessage::UsernameChanged(value) => {
                 self.username = value;
@@ -83,23 +86,13 @@ impl LoginTab {
                 self.login_failed = false;
             }
             LoginMessage::LoginPressed => {
-                let role = check_login(&self.username, &self.password);
-
-                return match role {
-                    PlantBuddyRole::Admin | PlantBuddyRole::User => {
-                        self.username = String::new();
-                        self.password = String::new();
-                        self.login_failed = false;
-                        role
-                    }
-                    _ => {
-                        self.login_failed = true;
-                        role
-                    }
-                };
+                return check_login(&self.username, &self.password);
+            }
+            LoginMessage::Login(l) => {
+                println!("Login result: {:?}", l);
             }
         }
-        PlantBuddyRole::NotLoggedIn
+        Command::none()
     }
 }
 
@@ -189,29 +182,12 @@ impl Tab for LoginTab {
     }
 }
 
-fn check_login(username: &str, password: &str) -> PlantBuddyRole {
-    let role = login(username.to_string(), password.to_string());
-
-    match role {
-        Ok(role) => match role {
-            PlantBuddyRole::Admin => {
-                println!("Login successful as {}", role);
-                role
-            }
-            PlantBuddyRole::User => {
-                println!("Login successful as {}", role);
-                PlantBuddyRole::User
-            }
-            _ => {
-                println!("Login failed");
-                PlantBuddyRole::NotLoggedIn
-            }
-        },
-        Err(e) => {
-            println!("Error: {}", e);
-            PlantBuddyRole::NotLoggedIn
-        }
-    }
+fn check_login(username: &str, password: &str) -> Command<LoginMessage> {
+    info!("Checking login");
+    Command::perform(
+        login(username.to_string(), password.to_string()),
+        LoginMessage::Login,
+    )
 }
 
 impl fmt::Display for PlantBuddyRole {
