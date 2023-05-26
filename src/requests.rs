@@ -119,7 +119,7 @@ pub struct GraphData {
 pub async fn get_graphs(
     plant_ids: Vec<String>,
     sensor_type: String,
-) -> Result<Vec<GraphData>, reqwest::Error> {
+) -> Result<Vec<GraphData>, Box<dyn std::error::Error>> {
     let client = reqwest::Client::new();
     let mut graphs = vec![];
 
@@ -133,19 +133,21 @@ pub async fn get_graphs(
             .header("X-User-Password", "1234")
             .send()
             .await?;
+
         let text = response.text().await?;
-        dbg!(text.clone());
-        let value: Value = serde_json::from_str(&text).unwrap();
-        let data = value.get("data").unwrap();
-        let mut values = vec![];
-        let mut timestamps = vec![];
-        data.as_array().unwrap().iter().for_each(|x| {
-            let value = x.get("value").unwrap();
-            let timestamp = x.get("timestamp").unwrap();
-            values.push(value.as_f64().unwrap() as i32);
-            timestamps.push(timestamp.as_str().unwrap().to_string());
-        });
-        graphs.push(GraphData { values, timestamps })
+        if text != "{\"data\":null}" {
+            let value: Value = serde_json::from_str(&text).unwrap();
+            let data = value.get("data").unwrap();
+            let mut values = vec![];
+            let mut timestamps = vec![];
+            data.as_array().unwrap().iter().for_each(|x| {
+                let value = x.get("value").unwrap();
+                let timestamp = x.get("timestamp").unwrap();
+                values.push(value.as_f64().unwrap() as i32);
+                timestamps.push(timestamp.as_str().unwrap().to_string());
+            });
+            graphs.push(GraphData { values, timestamps })
+        }
     }
 
     Ok(graphs)
