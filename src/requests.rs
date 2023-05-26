@@ -1,7 +1,15 @@
+use crate::detail::DetailMessage;
+use crate::graphs::{PlantChart, PlantCharts};
 use crate::login::PlantBuddyRole;
 use crate::management::User;
+use crate::{graphs, Message};
+use env_logger::fmt::Timestamp;
+use iced::theme::palette::Primary;
+use itertools::Itertools;
+use log::info;
+use plotters::style::RED;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Map, Value};
 use std::hash::Hash;
 use std::ops::Range;
 
@@ -87,6 +95,60 @@ pub async fn get_all_users(
     }
     print!("{:?}", users);
     Ok(users)
+}
+pub async fn get_all_plant_ids() -> Result<Vec<String>, reqwest::Error> {
+    let client = reqwest::Client::new();
+    let response = client
+        .get(ENDPOINT.to_string() + "plants")
+        .header("X-User-Name", "admin")
+        .header("X-User-Password", "1234")
+        .send()
+        .await?;
+
+    let ids: Vec<String> = response.error_for_status()?.json().await?;
+    info!("{:?}", ids);
+    Ok(ids)
+}
+#[derive(Deserialize, Debug)]
+pub struct GraphData {
+    pub values: Vec<i32>,
+    pub timestamps: Vec<String>,
+}
+
+#[tokio::main(flavor = "current_thread")]
+pub async fn get_graphs(
+    plant_ids: Vec<String>,
+    sensor_type: String,
+) -> Result<Vec<GraphData>, reqwest::Error> {
+    let client = reqwest::Client::new();
+    let mut graphs = vec![];
+
+    for plant_id in plant_ids {
+        let response = client
+            .get(&format!(
+                "{}sensor-data?sensor={}&plant={}&from=2019-01-01T00:00:00.000Z&to=2023-05-20T00:00:00.000Z",
+                ENDPOINT, sensor_type, plant_id
+            ))
+            .header("X-User-Name", "admin")
+            .header("X-User-Password", "1234")
+            .send()
+            .await?;
+        let text = response.text().await?;
+        dbg!(text.clone());
+        let value: Value = serde_json::from_str(&text).unwrap();
+        let data = value.get("data").unwrap();
+        let mut values = vec![];
+        let mut timestamps = vec![];
+        data.as_array().unwrap().iter().for_each(|x| {
+            let value = x.get("value").unwrap();
+            let timestamp = x.get("timestamp").unwrap();
+            values.push(value.as_f64().unwrap() as i32);
+            timestamps.push(timestamp.as_str().unwrap().to_string());
+        });
+        graphs.push(GraphData { values, timestamps })
+    }
+
+    Ok(graphs)
 }
 #[tokio::main(flavor = "current_thread")]
 pub async fn create_user(

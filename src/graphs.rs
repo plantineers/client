@@ -13,6 +13,7 @@ use plotters::series::LineSeries;
 use plotters::style::{Color, FontTransform, IntoFont, ShapeStyle, BLACK, BLUE, GREEN, RED, WHITE};
 use plotters_iced::{Chart, ChartBuilder, ChartWidget, DrawingBackend};
 
+#[derive(Debug, Clone)]
 pub struct PlantChart {
     pub name: String,
     pub x: Vec<i32>,
@@ -32,9 +33,10 @@ impl PlantChart {
         }
     }
     pub fn get_color(&self) -> RGBColor {
-        self.color.clone()
+        self.color
     }
 }
+#[derive(Debug, Clone)]
 pub struct PlantCharts<M> {
     pub charts: Vec<PlantChart>,
     pub message: M,

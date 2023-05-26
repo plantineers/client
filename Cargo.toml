@@ -9,6 +9,7 @@ edition = "2021"
 iced = { version = "0.9.0", default-features=false, features = ["canvas", "glow", "tokio", "debug", "image"] }
 iced_aw = { version = "0.5", default-features = false, features = ["tab_bar", "tabs", "card", "modal",] }
 plotters = "0.3.0"
+iced_core = "0.9.0"
 plotters-iced = "0.8.0"
 tokio = { version = "1.0", features = ["full"] }
 itertools = "0.10.5"

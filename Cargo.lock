@@ -2685,6 +2685,7 @@ dependencies = [
  "env_logger",
  "iced",
  "iced_aw",
+ "iced_core",
  "itertools",
  "log",
  "plotters",

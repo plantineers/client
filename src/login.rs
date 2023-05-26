@@ -9,7 +9,6 @@ use iced::{
     widget::{Button, Column, Container, Row, Text, TextInput},
     Alignment, Application, Color, Command, Element, Length,
 };
-use iced::{application, color};
 use iced_aw::tab_bar::TabLabel;
 use log::{info, log};
 use serde::{Deserialize, Serialize};

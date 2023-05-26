@@ -1,8 +1,12 @@
 use crate::{Icon, Message, Tab};
-use color_eyre::owo_colors::OwoColorize;
-use iced::{alignment::{Horizontal, Vertical}, widget::{Button, Column, Container, Row, Text, TextInput}, Alignment, Element, Length, theme};
+use iced::{
+    alignment::{Horizontal, Vertical},
+    theme,
+    widget::{Button, Column, Container, Row, Text, TextInput},
+    Alignment, Color, Element, Length, Theme,
+};
 use iced_aw::tab_bar::TabLabel;
-use iced_aw::{Card, Modal, style};
+use iced_aw::{style, Card, Modal};
 use log::info;
 
 #[derive(Debug, Clone)]
@@ -23,7 +27,9 @@ impl LogoutTab {
     pub fn new() -> Self {
         Self::default()
     }
-
+    pub fn theme(&self) -> Theme {
+        Theme::Dark
+    }
     pub fn update(&mut self, message: LogoutMessage) {
         match message {
             LogoutMessage::OpenModal => self.show_modal = true,
@@ -41,7 +47,6 @@ impl LogoutTab {
 
 impl Tab for LogoutTab {
     type Message = Message;
-
     fn title(&self) -> String {
         String::from("Logout")
     }
@@ -49,7 +54,6 @@ impl Tab for LogoutTab {
     fn tab_label(&self) -> TabLabel {
         TabLabel::IconText(Icon::Logout.into(), self.title())
     }
-
     fn content(&self) -> Element<'_, Self::Message> {
         let modal_content = Container::new(
             Button::new(
@@ -66,7 +70,6 @@ impl Tab for LogoutTab {
         .height(Length::Fill)
         .center_x()
         .center_y();
-
         let content: Element<'_, LogoutMessage> =
             Modal::new(self.show_modal, modal_content, || {
                 Card::new(
@@ -83,10 +86,12 @@ impl Tab for LogoutTab {
                         .push(
                             Button::new(
                                 Text::new("Abbrechen")
+                                    .style(Color::from_rgb(0.11, 0.42, 0.87))
                                     .horizontal_alignment(Horizontal::Center)
                                     .size(30),
                             )
                             .width(Length::Fill)
+                            .style(theme::Button::Primary)
                             .on_press(LogoutMessage::CancelButtonPressed),
                         )
                         .push(
@@ -95,7 +100,7 @@ impl Tab for LogoutTab {
                                     .horizontal_alignment(Horizontal::Center)
                                     .size(30),
                             )
-                                .style(theme::Button::Destructive)
+                            .style(theme::Button::Destructive)
                             .width(Length::Fill)
                             .on_press(LogoutMessage::OkButtonPressed),
                         ),
