@@ -96,6 +96,12 @@ pub async fn get_all_users(
     print!("{:?}", users);
     Ok(users)
 }
+#[derive(Deserialize, Debug)]
+pub struct PlantData {
+    pub id: i32,
+    pub description: String,
+}
+#[tokio::main(flavor = "current_thread")]
 pub async fn get_all_plant_ids() -> Result<Vec<String>, reqwest::Error> {
     let client = reqwest::Client::new();
     let response = client
@@ -108,6 +114,20 @@ pub async fn get_all_plant_ids() -> Result<Vec<String>, reqwest::Error> {
     let ids: Vec<String> = response.error_for_status()?.json().await?;
     info!("{:?}", ids);
     Ok(ids)
+}
+#[tokio::main(flavor = "current_thread")]
+pub async fn get_plant_details(plant_id: String) -> Result<PlantData, reqwest::Error> {
+    let client = reqwest::Client::new();
+    let response = client
+        .get(ENDPOINT.to_string() + &format!("plant/{}", plant_id))
+        .header("X-User-Name", "admin")
+        .header("X-User-Password", "1234")
+        .send()
+        .await?;
+
+    let details = response.error_for_status()?.json().await?;
+    info!("{:?}", details);
+    Ok(details)
 }
 #[derive(Deserialize, Debug)]
 pub struct GraphData {

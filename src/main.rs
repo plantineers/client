@@ -10,6 +10,7 @@ use iced::{
 };
 use iced_aw::style::TabBarStyles;
 use iced_aw::{TabBar, TabLabel, Tabs};
+use log::info;
 use plotters::coord::types::RangedCoordf32;
 use plotters::prelude::*;
 use plotters_iced::{Chart, ChartBuilder, ChartWidget, DrawingBackend};
@@ -128,6 +129,7 @@ impl Application for Plantbuddy {
     }
 
     fn update(&mut self, message: Self::Message) -> Command<Message> {
+        info!("Message: {:?}", message);
         match message {
             Message::TabSelected(selected) => self.active_tab = selected,
             Message::Login(message) => {

@@ -27,8 +27,8 @@ impl PlantChart {
     pub fn test() -> PlantChart {
         PlantChart {
             name: String::from("Test"),
-            x: vec![0, 1, 2, 3, 4, 5],
-            y: vec![0, -1, 10, 3, 4, 5],
+            x: vec![0, 0, 0, 0, 0, 0],
+            y: vec![0, 1, 2, 3, 4, 5],
             color: BLUE,
         }
     }
