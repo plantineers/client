@@ -46,6 +46,7 @@ pub(crate) struct ManagementTab {
     users: Vec<User>,
     error_message: String,
     editing_user: Option<User>,
+    pub logged_in_user: TempCreationUser,
 }
 
 impl ManagementTab {
@@ -57,10 +58,14 @@ impl ManagementTab {
             users: Vec::new(),
             error_message: String::new(),
             editing_user: None,
+            logged_in_user: TempCreationUser::default(),
         }
     }
 
     pub fn update(&mut self, message: ManagementMessage) {
+        let username = self.logged_in_user.name.clone();
+        let password = self.logged_in_user.password.clone();
+
         match message {
             ManagementMessage::UsernameChanged(username) => {
                 self.username_input = username;
@@ -85,8 +90,7 @@ impl ManagementTab {
                         password: self.password_input.clone(),
                         role: self.role_input.clone().into(),
                     };
-                    let result =
-                        create_user("admin".to_string(), "1234".to_string(), user_to_create);
+                    let result = create_user(username, password, user_to_create);
 
                     match result {
                         Ok(_) => {
@@ -108,8 +112,8 @@ impl ManagementTab {
                         return;
                     }
                     let result = update_user(
-                        "admin".to_string(),
-                        "1234".to_string(),
+                        username,
+                        password,
                         self.editing_user.clone().unwrap().id,
                         TempCreationUser {
                             name: self.username_input.clone(),
@@ -136,7 +140,7 @@ impl ManagementTab {
             }
             ManagementMessage::DeleteUser(id) => {
                 self.error_message = String::new();
-                let result = delete_user("admin".to_string(), "1234".to_string(), id);
+                let result = delete_user(username, password, id);
                 match result {
                     Ok(_) => {
                         self.error_message = format!("User with id {} deleted", id);
@@ -162,7 +166,7 @@ impl ManagementTab {
                 self.error_message = String::new();
             }
             ManagementMessage::GetUsers => {
-                let users = get_all_users("admin".to_string(), "1234".to_string());
+                let users = get_all_users(username, password);
                 match users {
                     Ok(users) => {
                         self.users = users;

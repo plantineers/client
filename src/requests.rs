@@ -6,13 +6,15 @@ use std::hash::Hash;
 use std::ops::Range;
 
 const ENDPOINT: &str = "https://pb.mfloto.com/v1/";
+
 pub type RequestResult<T> = Result<T, String>;
-pub async fn login(username: String, password: String) -> RequestResult<PlantBuddyRole> {
+
+pub async fn login(username: String, password: String) -> RequestResult<TempCreationUser> {
     let client = reqwest::Client::new();
     let response = client
         .get(ENDPOINT.to_string() + "user/login")
-        .header("X-User-Name", username)
-        .header("X-User-Password", password)
+        .header("X-User-Name", username.clone())
+        .header("X-User-Password", password.clone())
         .send()
         .await
         .map_err(|e| e.to_string())?;
@@ -27,8 +29,14 @@ pub async fn login(username: String, password: String) -> RequestResult<PlantBud
                 .as_u64()
                 .ok_or("Role not found or not an integer")
                 .unwrap();
-            let role = PlantBuddyRole::try_from(role_value).unwrap();
-            Ok(role)
+
+            let login_user = TempCreationUser {
+                name: username.clone(),
+                password: password.clone(),
+                role: role_value.clone(),
+            };
+
+            Ok(login_user)
         }
         Err(e) => Err(e.to_string()),
     }
@@ -41,11 +49,21 @@ struct TempUser {
     role: u64,
 }
 
-#[derive(Deserialize, Debug, Serialize)]
+#[derive(Deserialize, Debug, Serialize, Clone)]
 pub struct TempCreationUser {
     pub(crate) name: String,
     pub(crate) password: String,
     pub(crate) role: u64,
+}
+
+impl Default for TempCreationUser {
+    fn default() -> Self {
+        TempCreationUser {
+            name: String::new(),
+            password: String::new(),
+            role: PlantBuddyRole::NotLoggedIn.into(),
+        }
+    }
 }
 
 #[tokio::main(flavor = "current_thread")]

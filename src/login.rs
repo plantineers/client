@@ -15,12 +15,12 @@ use log::{info, log};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-use crate::requests::{login, RequestResult};
+use crate::requests::{login, RequestResult, TempCreationUser};
 use crate::{Icon, Message, Tab};
 
 #[derive(Debug, Clone)]
 pub enum LoginMessage {
-    Login(RequestResult<PlantBuddyRole>),
+    Login(RequestResult<TempCreationUser>),
     UsernameChanged(String),
     PasswordChanged(String),
     ClearPressed,
@@ -31,6 +31,15 @@ pub enum PlantBuddyRole {
     Admin,
     User,
     NotLoggedIn,
+}
+impl Into<u64> for PlantBuddyRole {
+    fn into(self) -> u64 {
+        match self {
+            PlantBuddyRole::Admin => 0,
+            PlantBuddyRole::User => 1,
+            PlantBuddyRole::NotLoggedIn => 2,
+        }
+    }
 }
 
 impl TryFrom<u64> for PlantBuddyRole {
@@ -46,15 +55,6 @@ impl TryFrom<u64> for PlantBuddyRole {
     }
 }
 
-impl Into<u64> for PlantBuddyRole {
-    fn into(self) -> u64 {
-        match self {
-            PlantBuddyRole::Admin => 0,
-            PlantBuddyRole::User => 1,
-            PlantBuddyRole::NotLoggedIn => 2,
-        }
-    }
-}
 pub struct LoginTab {
     username: String,
     password: String,
@@ -89,6 +89,9 @@ impl LoginTab {
                 return check_login(&self.username, &self.password);
             }
             LoginMessage::Login(l) => {
+                self.login_failed = false;
+                self.password = String::new();
+                self.username = String::new();
                 println!("Login result: {:?}", l);
             }
         }
