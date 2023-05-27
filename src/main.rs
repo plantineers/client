@@ -33,14 +33,13 @@ use crate::logout::{LogoutMessage, LogoutTab};
 use crate::requests::{RequestResult, TempCreationUser};
 use settings::{SettingsMessage, SettingsTab, TabBarPosition};
 
-const HEADER_SIZE: u16 = 32;
-const TAB_PADDING: u16 = 16;
-
+/// The font used for the icons.
 const EXTERNAL_ICON_FONT: Font = iced::Font::External {
     name: "External Icons",
     bytes: include_bytes!("../fonts/MaterialIcons-Regular.ttf"),
 };
 
+/// The Icons used in the application.
 enum Icon {
     User,
     Homescreen,
@@ -51,6 +50,7 @@ enum Icon {
     X,
 }
 
+/// Implementation of the from Icon to char conversion.
 impl From<Icon> for char {
     fn from(icon: Icon) -> Self {
         match icon {
@@ -65,6 +65,7 @@ impl From<Icon> for char {
     }
 }
 
+/// The main function of the application.
 fn main() {
     env_logger::init();
     Plantbuddy::run(Settings {
@@ -79,12 +80,25 @@ fn main() {
     .unwrap();
 }
 
-#[derive(PartialEq)]
+/// The LoginState enum is used to keep track of the login state of the application.
+#[derive(PartialEq, Debug)]
 enum LoginState {
     NotLoggedIn,
     LoggedIn,
 }
 
+/// The Plantbuddy struct is the main struct of the application.
+///  * Plantbuddy is a desktop application for managing plants. It allows users to view and edit plant data,
+///  * manage users, and customize settings. The application is built using the Rust programming language
+///  * and the Iced GUI library. The main.rs file contains the entry point for the application and defines
+///  * the Plantbuddy struct, which holds the application state and handles messages and updates. The struct
+///  * implements the Application trait from the Iced library, which defines the behavior of the application.
+///  * The file also includes several modules that define the different pages and components of the application,
+///  * such as the home page, detail page, login page, and management page. Each module defines a struct that
+///  * implements the Tab trait, which defines the behavior of a tab in the application. The file also includes
+///  * several utility functions and constants, such as the Icon enum, which defines the icons used in the
+///  * application, and the EXTERNAL_ICON_FONT constant, which defines the font used for the icons.
+///  
 struct Plantbuddy {
     is_logged_in: LoginState,
     active_tab: usize,
@@ -97,6 +111,7 @@ struct Plantbuddy {
     user: TempCreationUser,
 }
 
+/// The Message enum is used to handle messages from the different tabs.
 #[derive(Debug, Clone)]
 pub enum Message {
     TabSelected(usize),
@@ -108,12 +123,16 @@ pub enum Message {
     Management(ManagementMessage),
 }
 
+/// implementation of the Application trait for the Plantbuddy struct.
 impl Application for Plantbuddy {
     type Executor = executor::Default;
     type Message = Message;
     type Theme = Theme;
     type Flags = ();
 
+    /// Constructs a new instance of the `Plantbuddy` application.
+    /// # Returns
+    /// A tuple containing the newly created `Plantbuddy` application and an initial command of type `Message`.
     fn new(_: Self::Flags) -> (Self, Command<Message>) {
         (
             Plantbuddy {
@@ -130,10 +149,17 @@ impl Application for Plantbuddy {
             Command::none(),
         )
     }
+
+    /// Returns the title of the application.
     fn title(&self) -> String {
         String::from("Plantbuddy")
     }
 
+    /// Updates the state of the `Plantbuddy` application.
+    /// # Arguments
+    /// * `message` - The message to update the state with.
+    /// # Returns
+    /// A command of type `Message`.
     fn update(&mut self, message: Self::Message) -> Command<Message> {
         match message {
             Message::TabSelected(selected) => self.active_tab = selected,
@@ -177,6 +203,7 @@ impl Application for Plantbuddy {
         Command::none()
     }
 
+    /// Returns the view of the `Plantbuddy` application.
     fn view(&self) -> Element<Self::Message> {
         if self.is_logged_in == LoginState::LoggedIn {
             let position = self
@@ -214,6 +241,7 @@ impl Application for Plantbuddy {
         }
     }
 
+    /// Returns the custom theme of the `Plantbuddy` application.
     fn theme(&self) -> Theme {
         let palette = Palette {
             background: Color::from_rgb(5.0 / 255.0, 59.0 / 255.0, 6.0 / 255.0),
@@ -227,13 +255,19 @@ impl Application for Plantbuddy {
     }
 }
 
+/// A trait representing a tab in the `Plantbuddy` application.
+/// # Types
+/// - `Message`: The type of message that this tab will use to communicate.
 pub trait Tab {
     type Message;
 
+    /// Returns the title of the tab.
     fn title(&self) -> String;
 
+    /// Returns the label of the tab.
     fn tab_label(&self) -> TabLabel;
 
+    /// Updates the state of the tab.
     fn view(&self) -> Element<'_, Self::Message> {
         let column = Column::new()
             .spacing(20)
@@ -249,5 +283,24 @@ pub trait Tab {
             .into()
     }
 
+    /// Returns the content of the tab.
     fn content(&self) -> Element<'_, Self::Message>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_new_plantbuddy() {
+        let (plantbuddy, cmd) = Plantbuddy::new(());
+        assert_eq!(plantbuddy.is_logged_in, LoginState::NotLoggedIn);
+        assert_eq!(plantbuddy.active_tab, 0);
+    }
+
+    #[test]
+    fn test_plantbuddy_title() {
+        let (plantbuddy, _) = Plantbuddy::new(());
+        assert_eq!(plantbuddy.title(), "Plantbuddy");
+    }
 }
