@@ -4,12 +4,17 @@ use iced::alignment::{Horizontal, Vertical};
 use iced::theme::{Custom, Palette};
 use iced::widget::vertical_slider::draw;
 use iced::widget::{button, container, row, Button, Column, Container, Image, Row, Text};
-use iced::{window, Background, Color, Element, Font, Length, Sandbox, Settings, Theme};
+use iced::{
+    executor, window, Application, Background, Color, Command, Element, Font, Length, Sandbox,
+    Settings, Theme,
+};
 use iced_aw::style::TabBarStyles;
 use iced_aw::{TabBar, TabLabel, Tabs};
 use plotters::coord::types::RangedCoordf32;
 use plotters::prelude::*;
 use plotters_iced::{Chart, ChartBuilder, ChartWidget, DrawingBackend};
+use serde::__private::de::IdentifierDeserializer;
+
 mod home;
 use crate::home::{HomeMessage, HomePage};
 mod detail;
@@ -25,6 +30,7 @@ use crate::management::{ManagementMessage, ManagementTab};
 
 use crate::logout::{LogoutMessage, LogoutTab};
 
+use crate::requests::{RequestResult, TempCreationUser};
 use settings::{SettingsMessage, SettingsTab, TabBarPosition};
 
 const HEADER_SIZE: u16 = 32;
@@ -58,12 +64,13 @@ impl From<Icon> for char {
         }
     }
 }
+
 fn main() {
     env_logger::init();
     Plantbuddy::run(Settings {
         antialiasing: false,
         window: window::Settings {
-            size: (1280, 720),
+            size: (1920, 1080),
             position: window::Position::Centered,
             ..window::Settings::default()
         },
@@ -72,8 +79,14 @@ fn main() {
     .unwrap();
 }
 
+#[derive(PartialEq)]
+enum LoginState {
+    NotLoggedIn,
+    LoggedIn,
+}
+
 struct Plantbuddy {
-    is_logged_in: bool,
+    is_logged_in: LoginState,
     active_tab: usize,
     home_page: HomePage,
     detail_page: DetailPage,
@@ -81,7 +94,7 @@ struct Plantbuddy {
     settings_tab: SettingsTab,
     logout_tab: LogoutTab,
     management_tab: ManagementTab,
-    role: PlantBuddyRole,
+    user: TempCreationUser,
 }
 
 #[derive(Debug, Clone)]
@@ -95,43 +108,54 @@ pub enum Message {
     Management(ManagementMessage),
 }
 
-impl Sandbox for Plantbuddy {
+impl Application for Plantbuddy {
+    type Executor = executor::Default;
     type Message = Message;
+    type Theme = Theme;
+    type Flags = ();
 
-    fn new() -> Self {
-        Plantbuddy {
-            // Fixme: This should be false in production
-            is_logged_in: false,
-            active_tab: 0,
-            home_page: HomePage::new(),
-            detail_page: DetailPage::new(),
-            login_page: LoginTab::new(),
-            settings_tab: SettingsTab::new(),
-            logout_tab: LogoutTab::new(),
-            management_tab: ManagementTab::new(),
-            role: PlantBuddyRole::NotLoggedIn,
-        }
+    fn new(_: Self::Flags) -> (Self, Command<Message>) {
+        (
+            Plantbuddy {
+                is_logged_in: LoginState::NotLoggedIn,
+                active_tab: 0,
+                home_page: HomePage::new(),
+                detail_page: DetailPage::new(),
+                login_page: LoginTab::new(),
+                settings_tab: SettingsTab::new(),
+                logout_tab: LogoutTab::new(),
+                management_tab: ManagementTab::new(),
+                user: TempCreationUser::default(),
+            },
+            Command::none(),
+        )
+        // We could also return a command here to try to auto-login here
     }
     fn title(&self) -> String {
         String::from("Plantbuddy")
     }
 
-    fn update(&mut self, message: Self::Message) {
+    fn update(&mut self, message: Self::Message) -> Command<Message> {
         match message {
             Message::TabSelected(selected) => self.active_tab = selected,
             Message::Login(message) => {
-                let login_successful = self.login_page.update(message);
-                match login_successful {
-                    PlantBuddyRole::Admin => {
-                        self.is_logged_in = true;
-                        self.role = PlantBuddyRole::Admin;
+                if let LoginMessage::Login(result) = &message {
+                    if let RequestResult::Ok(role) = result {
+                        self.is_logged_in = LoginState::LoggedIn;
+                        self.user = role.clone();
+                        // Update the logged in user in the management tab
+                        self.management_tab.logged_in_user = role.clone();
+
+                        // Clear the LoginTab
+                        self.login_page = LoginTab::new();
+
+                        return self
+                            .management_tab
+                            .update(ManagementMessage::GetUsersPressed)
+                            .map(Message::Management);
                     }
-                    PlantBuddyRole::User => {
-                        self.is_logged_in = true;
-                        self.role = PlantBuddyRole::User;
-                    }
-                    PlantBuddyRole::NotLoggedIn => {}
                 }
+                return self.login_page.update(message).map(Message::Login);
             }
             Message::Home(message) => self.home_page.update(message),
             Message::Detail(message) => self.detail_page.update(message),
@@ -139,16 +163,19 @@ impl Sandbox for Plantbuddy {
             Message::Logout(message) => {
                 self.logout_tab.update(message.clone());
                 if let LogoutMessage::OkButtonPressed = message {
-                    self.is_logged_in = false;
-                    self.role = PlantBuddyRole::NotLoggedIn;
+                    self.is_logged_in = LoginState::NotLoggedIn;
+                    self.user = TempCreationUser::default()
                 }
             }
-            Message::Management(message) => self.management_tab.update(message),
+            Message::Management(message) => {
+                return self.management_tab.update(message).map(Message::Management);
+            }
         }
+        Command::none()
     }
 
     fn view(&self) -> Element<Self::Message> {
-        if self.is_logged_in {
+        if self.is_logged_in == LoginState::LoggedIn {
             let position = self
                 .settings_tab
                 .settings()
@@ -167,7 +194,8 @@ impl Sandbox for Plantbuddy {
                 .tab_bar_style(theme)
                 .icon_font(EXTERNAL_ICON_FONT);
 
-            if let PlantBuddyRole::Admin = self.role {
+            if let PlantBuddyRole::Admin = PlantBuddyRole::try_from(self.user.role.clone()).unwrap()
+            {
                 tabs = tabs.push(self.management_tab.tab_label(), self.management_tab.view());
             }
 
