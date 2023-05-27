@@ -1,5 +1,6 @@
 use crate::graphs::{PlantChart, PlantCharts};
-use crate::requests::{get_graphs, get_plant_details, GraphData};
+use crate::home::HomeMessage;
+use crate::requests::{get_graphs, get_plant_details, GraphData, PlantData};
 use crate::{Icon, Message, Tab};
 use color_eyre::owo_colors::OwoColorize;
 use iced::alignment::{Horizontal, Vertical};
@@ -17,8 +18,7 @@ use std::vec;
 #[derive(Debug, Clone)]
 pub struct DetailPlant {
     pub id: String,
-    pub name: String,
-    pub description: String,
+    pub data: PlantData,
     pub charts: PlantCharts<DetailMessage>,
 }
 
@@ -28,8 +28,7 @@ impl DetailPlant {
         let plant_data = get_plant_details(id).unwrap();
         let plant = DetailPlant {
             id: plant_data.id.to_string(),
-            name: plant_data.id.to_string(),
-            description: plant_data.description,
+            data: plant_data,
             charts,
         };
         plant
@@ -101,8 +100,7 @@ impl DetailPage {
     pub fn new() -> DetailPage {
         let plant = DetailPlant {
             id: "1".to_string(),
-            name: String::from("no name"),
-            description: String::from("no description"),
+            data: PlantData::default(),
             charts: PlantCharts::new(Vec::new(), DetailMessage::Loaded),
         };
         let detail_page = DetailPage {
@@ -152,12 +150,17 @@ impl Tab for DetailPage {
         info!("{:?}", self.message);
         let row = if self.message != DetailMessage::Load {
             let plant = &self.plant;
-
+            let mut care_tip_col: Column<DetailMessage> = Column::new();
+            for caretip in &plant.data.additionalCareTips {
+                care_tip_col = care_tip_col.push(Text::new(caretip.clone()));
+            }
             let chart = ChartWidget::new(plant.charts.clone());
             let row: Row<DetailMessage> = Row::new()
-                .push(Text::new(plant.name.clone()))
+                .push(Text::new(plant.data.name.clone()))
                 .spacing(20)
-                .push(Text::new(plant.description.clone()))
+                .push(Text::new(plant.data.description.clone()))
+                .spacing(20)
+                .push(Text::new(plant.data.location.clone()))
                 .spacing(20)
                 .push(
                     Button::new(Text::new("Feuchtigkeit"))
@@ -171,14 +174,24 @@ impl Tab for DetailPage {
                     Button::new(Text::new("Temperatur"))
                         .on_press(DetailMessage::SwitchGraph(Sensortypes::Temperatur)),
                 )
-                .push(Button::new(Text::new("Neue Pflanze")).on_press(DetailMessage::Load))
-                .push(chart);
+                .push(
+                    Button::new(Text::new("Andere Pflanze anzeigen")).on_press(DetailMessage::Load),
+                );
+            let chart_col = Column::new().push(row).push(chart);
+            let row = Row::new()
+                .push(care_tip_col)
+                .push(chart_col)
+                .spacing(20)
+                .align_items(Center);
             row
         } else {
             let row = Row::new()
-                .push(TextInput::new("Loading...", &self.plant.id).on_input(DetailMessage::Search))
                 .push(
-                    Button::new(Text::new("Load"))
+                    TextInput::new("Keine Pflanze ausgewählt...", &self.plant.id)
+                        .on_input(DetailMessage::Search),
+                )
+                .push(
+                    Button::new(Text::new("Anzeigen"))
                         .on_press(DetailMessage::PlantData(self.plant.id.clone())),
                 )
                 .spacing(20)

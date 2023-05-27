@@ -110,7 +110,7 @@ impl Application for Plantbuddy {
         (
             Plantbuddy {
                 // Fixme: This should be false in production
-                is_logged_in: false,
+                is_logged_in: true,
                 active_tab: 0,
                 home_page: HomePage::new(),
                 detail_page: DetailPage::new(),

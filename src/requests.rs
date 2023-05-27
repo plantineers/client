@@ -76,8 +76,7 @@ pub async fn get_all_users(
     for id in ids {
         let response = client
             .get(ENDPOINT.to_string() + &format!("user/{}", id))
-            .header("X-User-Name", &username)
-            .header("X-User-Password", &password)
+            .header("Authorization", "Basic YWRtaW46MTIzNA==")
             .send()
             .await?;
 
@@ -96,18 +95,32 @@ pub async fn get_all_users(
     print!("{:?}", users);
     Ok(users)
 }
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct PlantData {
     pub id: i32,
+    pub name: String,
     pub description: String,
+    pub location: String,
+    pub additionalCareTips: Vec<String>,
+}
+
+impl Default for PlantData {
+    fn default() -> Self {
+        Self {
+            id: 1,
+            name: String::new(),
+            description: String::new(),
+            location: String::new(),
+            additionalCareTips: Vec::new(),
+        }
+    }
 }
 #[tokio::main(flavor = "current_thread")]
 pub async fn get_all_plant_ids() -> Result<Vec<String>, reqwest::Error> {
     let client = reqwest::Client::new();
     let response = client
         .get(ENDPOINT.to_string() + "plants")
-        .header("X-User-Name", "admin")
-        .header("X-User-Password", "1234")
+        .header("Authorization", "Basic YWRtaW46MTIzNA==")
         .send()
         .await?;
     let text = response.text().await?;
@@ -127,8 +140,7 @@ pub async fn get_plant_details(plant_id: String) -> Result<PlantData, reqwest::E
     let client = reqwest::Client::new();
     let response = client
         .get(ENDPOINT.to_string() + &format!("plant/{}", plant_id))
-        .header("X-User-Name", "admin")
-        .header("X-User-Password", "1234")
+        .header("Authorization", "Basic YWRtaW46MTIzNA==")
         .send()
         .await?;
 
@@ -156,8 +168,7 @@ pub async fn get_graphs(
                 "{}sensor-data?sensor={}&plant={}&from=2019-01-01T00:00:00.000Z&to=2023-05-20T00:00:00.000Z",
                 ENDPOINT, sensor_type, plant_id
             ))
-            .header("X-User-Name", "admin")
-            .header("X-User-Password", "1234")
+            .header("Authorization", "Basic YWRtaW46MTIzNA==")
             .send()
             .await?;
 
@@ -190,7 +201,6 @@ pub async fn create_user(
     println!("{}", json);
     let response = client
         .post(ENDPOINT.to_string() + "user/")
-        .header("X-User-Name", &username)
         .header("X-User-Password", &password)
         .json(&user)
         .send()
