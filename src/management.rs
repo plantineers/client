@@ -509,3 +509,73 @@ fn edit_user_pressed(
         ManagementMessage::UserEdited,
     )
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    async fn create_user(
+        _username: String,
+        _password: String,
+        _user: TempCreationUser,
+    ) -> Result<(), ()> {
+        Ok(())
+    }
+
+    async fn delete_user(_username: String, _password: String, _id: u32) -> Result<(), ()> {
+        Ok(())
+    }
+
+    async fn get_all_users(_username: String, _password: String) -> Result<Vec<User>, ()> {
+        Ok(Vec::new())
+    }
+
+    async fn update_user(
+        _username: String,
+        _password: String,
+        _id: u32,
+        _user: TempCreationUser,
+    ) -> Result<(), ()> {
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_create_user_pressed() {
+        let username = "test_username".to_string();
+        let password = "test_password".to_string();
+        let tab = ManagementTab::new();
+
+        create_user_pressed(tab, username, password);
+    }
+
+    #[tokio::test]
+    async fn test_delete_user_pressed() {
+        let username = "test_username".to_string();
+        let password = "test_password".to_string();
+        let id = 1;
+
+        delete_user_pressed(id, username, password);
+    }
+
+    #[tokio::test]
+    async fn test_get_all_users_pressed() {
+        let username = "test_username".to_string();
+        let password = "test_password".to_string();
+
+        get_all_users_pressed(username, password);
+    }
+
+    #[tokio::test]
+    async fn test_edit_user_pressed() {
+        let username = "test_username".to_string();
+        let password = "test_password".to_string();
+        let mut tab = ManagementTab::new();
+        tab.editing_user = Some(User {
+            id: 5,
+            name: "test_name".to_string(),
+            password: "test_password".to_string(),
+            role: PlantBuddyRole::User,
+        });
+
+        edit_user_pressed(tab, username, password);
+    }
+}
