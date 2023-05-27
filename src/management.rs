@@ -36,10 +36,8 @@ pub enum ManagementMessage {
     /// Message sent when the create new user button is pressed.
     CreateNewUserPressed,
     /// Message sent when the edit user button is pressed, includes the User details.
-    EditUserButton(User),
+    EditUserButtonPressed(User),
     /// Message sent when user editing operation is done.
-    EditUser,
-    /// Message sent when get users button is pressed.
     GetUsersPressed,
     /// Message sent when a new user is created, includes the result of the request.
     UserCreated(RequestResult<()>),
@@ -64,6 +62,7 @@ pub struct User {
 /// It contains fields for user input (username, password, and role) and for displaying user data (users).
 /// The `error_message` field is used to show any error messages to the user.
 /// The `editing_user` field is used to store the user being edited (if any).
+/// The `notify_message` field is used to show any notifications to the user.
 #[derive(Debug, Clone, Deserialize)]
 pub(crate) struct ManagementTab {
     username_input: String,
@@ -71,6 +70,7 @@ pub(crate) struct ManagementTab {
     role_input: PlantBuddyRole,
     users: Vec<User>,
     error_message: String,
+    notify_message: String,
     editing_user: Option<User>,
     pub logged_in_user: TempCreationUser,
 }
@@ -84,6 +84,7 @@ impl ManagementTab {
             role_input: PlantBuddyRole::User,
             users: Vec::new(),
             error_message: String::new(),
+            notify_message: String::new(),
             editing_user: None,
             logged_in_user: TempCreationUser::default(),
         }
@@ -99,10 +100,12 @@ impl ManagementTab {
             ManagementMessage::UsernameChanged(username) => {
                 self.username_input = username;
                 self.error_message = String::new();
+                self.notify_message = String::new();
             }
             ManagementMessage::PasswordChanged(password) => {
                 self.password_input = password;
                 self.error_message = String::new();
+                self.notify_message = String::new();
             }
             ManagementMessage::CreateNewUserPressed => {
                 // Check if in editing mode
@@ -124,21 +127,22 @@ impl ManagementTab {
             }
             ManagementMessage::DeleteUserPressed(id) => {
                 self.error_message = String::new();
+                self.notify_message = String::new();
                 return delete_user_pressed(id.clone(), username.clone(), password.clone());
             }
             ManagementMessage::RoleChanged(role) => {
+                self.error_message = String::new();
+                self.notify_message = String::new();
                 self.role_input = role;
             }
-            ManagementMessage::EditUserButton(user) => {
+            ManagementMessage::EditUserButtonPressed(user) => {
                 self.error_message = String::new();
+                self.notify_message = String::new();
                 self.editing_user = Some(user.clone());
 
                 self.role_input = user.role.clone();
                 self.username_input = user.name.clone();
                 self.password_input = user.password.clone();
-            }
-            ManagementMessage::EditUser => {
-                self.error_message = String::new();
             }
             ManagementMessage::GetUsersPressed => {
                 self.error_message = String::new();
@@ -146,9 +150,9 @@ impl ManagementTab {
             }
             ManagementMessage::UserCreated(result) => match result {
                 Ok(_) => {
-                    self.error_message = String::from("User created");
                     self.username_input.clear();
                     self.password_input.clear();
+                    self.notify_message = String::from("User created");
                     return self.update(ManagementMessage::GetUsersPressed);
                 }
                 Err(e) => {
@@ -157,7 +161,7 @@ impl ManagementTab {
             },
             ManagementMessage::UserDeleted(result) => match result {
                 Ok(_) => {
-                    self.error_message = String::from("User deleted");
+                    self.notify_message = String::from("User deleted");
                     return self.update(ManagementMessage::GetUsersPressed);
                 }
                 Err(e) => {
@@ -174,7 +178,7 @@ impl ManagementTab {
             },
             ManagementMessage::UserEdited(result) => match result {
                 Ok(_) => {
-                    self.error_message = String::from("User edited");
+                    self.notify_message = String::from("User edited");
                     self.username_input.clear();
                     self.password_input.clear();
                     self.editing_user = None;
@@ -222,14 +226,26 @@ impl Tab for ManagementTab {
     }
     /// Returns the content of the tab.
     fn content(&self) -> Element<'_, Self::Message> {
-        let refresh_row = Container::new(
-            Button::new("Refresh")
-                .height(Length::from(40))
-                .on_press(ManagementMessage::GetUsersPressed)
-                .style(iced::theme::Button::Primary),
-        )
-        .width(Length::from(Length::Fill))
-        .align_x(Horizontal::Center);
+        let refresh_row = Row::new()
+            .push(
+                Container::new(
+                    Button::new("Refresh")
+                        .height(Length::from(50))
+                        .on_press(ManagementMessage::GetUsersPressed)
+                        .style(iced::theme::Button::Primary),
+                )
+                .width(Length::from(Length::Fill))
+                .align_x(Horizontal::Center),
+            )
+            .push(
+                Container::new(
+                    Text::new(self.notify_message.clone())
+                        .style((Color::from_rgb(0.0, 1.0, 0.0)))
+                        .size(30),
+                )
+                .width(Length::from(Length::Fill))
+                .align_x(Horizontal::Center),
+            );
 
         let mut user_list = Column::new().width(Length::Fill).height(Length::Fill);
         user_list = user_list.push(
@@ -304,7 +320,7 @@ impl Tab for ManagementTab {
                 .push(
                     Container::new(
                         Button::new(Text::new("Edit").size(25))
-                            .on_press(ManagementMessage::EditUserButton(user.clone()))
+                            .on_press(ManagementMessage::EditUserButtonPressed(user.clone()))
                             .width(Length::FillPortion(1)),
                     )
                     .center_x()
