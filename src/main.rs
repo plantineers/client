@@ -129,7 +129,6 @@ impl Application for Plantbuddy {
             },
             Command::none(),
         )
-        // We could also return a command here to try to auto-login here
     }
     fn title(&self) -> String {
         String::from("Plantbuddy")
@@ -139,16 +138,19 @@ impl Application for Plantbuddy {
         match message {
             Message::TabSelected(selected) => self.active_tab = selected,
             Message::Login(message) => {
+                // Check if login was successful and if so, update the user
                 if let LoginMessage::Login(result) = &message {
                     if let RequestResult::Ok(role) = result {
                         self.is_logged_in = LoginState::LoggedIn;
                         self.user = role.clone();
-                        // Update the logged in user in the management tab
-                        self.management_tab.logged_in_user = role.clone();
 
                         // Clear the LoginTab
                         self.login_page = LoginTab::new();
 
+                        // Update the logged in user in the management tab
+                        self.management_tab.logged_in_user = role.clone();
+
+                        // Get all users from the server and update the management tab
                         return self
                             .management_tab
                             .update(ManagementMessage::GetUsersPressed)
@@ -162,6 +164,7 @@ impl Application for Plantbuddy {
             Message::Settings(message) => self.settings_tab.update(message),
             Message::Logout(message) => {
                 self.logout_tab.update(message.clone());
+                // If the logout is approved, log out and return to the login screen
                 if let LogoutMessage::OkButtonPressed = message {
                     self.is_logged_in = LoginState::NotLoggedIn;
                     self.user = TempCreationUser::default()
