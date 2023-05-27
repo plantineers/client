@@ -59,6 +59,7 @@ pub struct LoginTab {
     username: String,
     password: String,
     login_failed: bool,
+    last_error_massage: String,
 }
 
 impl LoginTab {
@@ -67,6 +68,7 @@ impl LoginTab {
             username: String::new(),
             password: String::new(),
             login_failed: false,
+            last_error_massage: String::new(),
         }
     }
 
@@ -86,9 +88,27 @@ impl LoginTab {
                 self.login_failed = false;
             }
             LoginMessage::LoginPressed => {
+                if self.username.is_empty() || self.password.is_empty() {
+                    info!("Username or password is empty");
+                    self.login_failed = true;
+                    self.last_error_massage = "Username or password is empty".to_string();
+                    return Command::none();
+                }
                 return check_login(&self.username, &self.password);
             }
-            LoginMessage::Login(result) => {}
+            LoginMessage::Login(result) => match result {
+                Ok(user) => {
+                    info!("Login successful");
+                    info!("User: {:?}", user);
+                    self.login_failed = false;
+                }
+                Err(error) => {
+                    info!("Login failed");
+                    info!("Error: {:?}", error);
+                    self.login_failed = true;
+                    self.last_error_massage = "Server error".to_string();
+                }
+            },
         }
         Command::none()
     }
@@ -108,7 +128,7 @@ impl Tab for LoginTab {
     fn view(&self) -> Element<'_, Self::Message> {
         let column = Column::new()
             .spacing(20)
-            .push(Text::new(self.title()).size(55))
+            .push(Text::new(self.title()).size(70))
             .align_items(Center)
             .push(self.content());
 
@@ -123,12 +143,13 @@ impl Tab for LoginTab {
 
     fn content(&self) -> Element<'_, Self::Message> {
         let image = Image::new("assets/plantbuddy.png")
-            .width(Length::from(100))
-            .height(Length::from(100));
+            .width(Length::from(200))
+            .height(Length::from(200));
 
         let content: Element<'_, LoginMessage> = Container::new(
             Column::new()
                 .align_items(Alignment::Center)
+                .height(Length::Fill)
                 .max_width(600)
                 .padding(20)
                 .spacing(16)
@@ -147,7 +168,8 @@ impl Tab for LoginTab {
                         .password(),
                 )
                 .push(if self.login_failed {
-                    Text::new("Login failed")
+                    Text::new(format!("Login failed: {}", self.last_error_massage))
+                        .size(32)
                         .horizontal_alignment(Horizontal::Center)
                         .style(theme::Text::Color(Color::from_rgb(1.0, 0.0, 0.0)))
                 } else {
@@ -158,15 +180,21 @@ impl Tab for LoginTab {
                         .spacing(10)
                         .push(
                             Button::new(
-                                Text::new("Clear").horizontal_alignment(Horizontal::Center),
+                                Text::new("Clear")
+                                    .horizontal_alignment(Horizontal::Center)
+                                    .size(32),
                             )
                             .width(Length::Fill)
+                            .height(Length::from(50))
                             .on_press(LoginMessage::ClearPressed),
                         )
                         .push(
                             Button::new(
-                                Text::new("Login").horizontal_alignment(Horizontal::Center),
+                                Text::new("Login")
+                                    .horizontal_alignment(Horizontal::Center)
+                                    .size(32),
                             )
+                            .height(Length::from(50))
                             .width(Length::Fill)
                             .on_press(LoginMessage::LoginPressed),
                         ),
