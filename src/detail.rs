@@ -1,7 +1,5 @@
 use crate::graphs::{PlantChart, PlantCharts};
-use crate::requests::{
-    create_user, get_all_plant_ids, get_graphs, get_plant_details, GraphData, PlantData,
-};
+use crate::requests::{get_graphs, get_plant_details, GraphData};
 use crate::{Icon, Message, Tab};
 use color_eyre::owo_colors::OwoColorize;
 use iced::alignment::{Horizontal, Vertical};
@@ -30,7 +28,7 @@ impl DetailPlant {
         let plant_data = get_plant_details(id).unwrap();
         let plant = DetailPlant {
             id: plant_data.id.to_string(),
-            name: String::from("no name"),
+            name: plant_data.id.to_string(),
             description: plant_data.description,
             charts,
         };
@@ -70,6 +68,7 @@ pub enum DetailMessage {
     PlantData(String),
     Loaded,
     SwitchGraph(Sensortypes),
+    Search(String),
 }
 
 pub(crate) struct DetailPage {
@@ -82,7 +81,6 @@ pub enum Sensortypes {
     Luftfeuchtigkeit,
     Temperatur,
 }
-
 impl Sensortypes {
     pub fn get_name(&self) -> String {
         match self {
@@ -101,7 +99,6 @@ impl Sensortypes {
 }
 impl DetailPage {
     pub fn new() -> DetailPage {
-        info!("Fick dich");
         let plant = DetailPlant {
             id: "1".to_string(),
             name: String::from("no name"),
@@ -126,14 +123,17 @@ impl DetailPage {
                 self.plant = self.plant.new(id, graph_data.unwrap());
                 self.message = DetailMessage::Loaded;
             }
-            DetailMessage::SwitchGraph(Sensortypes) => {
-                let sensor_name = Sensortypes.get_name();
+            DetailMessage::SwitchGraph(sensor_types) => {
+                let sensor_name = sensor_types.get_name();
                 let graph_data = get_graphs(vec!["1".to_string()], sensor_name);
                 self.plant
-                    .update_charts(DetailMessage::Loaded, graph_data.unwrap(), Sensortypes);
+                    .update_charts(DetailMessage::Loaded, graph_data.unwrap(), sensor_types);
                 self.message = DetailMessage::Loaded;
             }
             DetailMessage::Loaded => {}
+            DetailMessage::Search(value) => {
+                self.plant.id = value;
+            }
         }
     }
 }
@@ -151,17 +151,14 @@ impl Tab for DetailPage {
     fn content(&self) -> Element<'_, Self::Message> {
         info!("{:?}", self.message);
         let row = if self.message != DetailMessage::Load {
-            info!("Creating detail page");
             let plant = &self.plant;
-            let left_column: Column<DetailMessage> = Column::new()
+
+            let chart = ChartWidget::new(plant.charts.clone());
+            let row: Row<DetailMessage> = Row::new()
                 .push(Text::new(plant.name.clone()))
                 .spacing(20)
                 .push(Text::new(plant.description.clone()))
                 .spacing(20)
-                .align_items(Center);
-
-            let chart = ChartWidget::new(plant.charts.clone());
-            let right_column: Column<DetailMessage> = Column::new()
                 .push(
                     Button::new(Text::new("Feuchtigkeit"))
                         .on_press(DetailMessage::SwitchGraph(Sensortypes::Feuchtigkeit)),
@@ -176,11 +173,10 @@ impl Tab for DetailPage {
                 )
                 .push(Button::new(Text::new("Neue Pflanze")).on_press(DetailMessage::Load))
                 .push(chart);
-            let row = row!(left_column, right_column);
             row
         } else {
             let row = Row::new()
-                .push(TextInput::new("Loading...", &self.plant.id))
+                .push(TextInput::new("Loading...", &self.plant.id).on_input(DetailMessage::Search))
                 .push(
                     Button::new(Text::new("Load"))
                         .on_press(DetailMessage::PlantData(self.plant.id.clone())),

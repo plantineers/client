@@ -110,9 +110,16 @@ pub async fn get_all_plant_ids() -> Result<Vec<String>, reqwest::Error> {
         .header("X-User-Password", "1234")
         .send()
         .await?;
-
-    let ids: Vec<String> = response.error_for_status()?.json().await?;
-    info!("{:?}", ids);
+    let text = response.text().await?;
+    info!("{:?}", text);
+    let mut ids: Vec<String> = vec![];
+    if text != "{\"plants\":null}" {
+        let value: Value = serde_json::from_str(&text).unwrap();
+        let data = value.get("plants").unwrap();
+        data.as_array().unwrap().iter().for_each(|x| {
+            ids.push(x.to_string());
+        });
+    }
     Ok(ids)
 }
 #[tokio::main(flavor = "current_thread")]

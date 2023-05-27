@@ -1,9 +1,10 @@
-use crate::detail::{DetailMessage, DetailPage};
+use crate::detail::{DetailMessage, DetailPage, Sensortypes};
+use crate::requests::GraphData;
 use crate::Message;
 use color_eyre::owo_colors::OwoColorize;
 use iced::widget::Container;
 use iced::{Element, Length};
-use itertools::enumerate;
+use itertools::{enumerate, Itertools};
 use plotters::chart::SeriesLabelPosition;
 use plotters::coord::Shift;
 use plotters::drawing::DrawingArea;
@@ -66,6 +67,32 @@ impl<M: 'static> PlantCharts<M> {
             }
         }
         (x, y)
+    }
+    pub fn create_charts(
+        message: M,
+        graph_data: Vec<GraphData>,
+        sensor: Sensortypes,
+    ) -> PlantCharts<M> {
+        let mut charts = Vec::new();
+        for data in &graph_data {
+            let chart = PlantChart::new(
+                format!("{:?}", sensor),
+                (0..data.timestamps.len() as i32).collect_vec(),
+                data.values.clone(),
+                sensor.get_color(),
+            );
+            charts.push(chart);
+        }
+        let mut plant_charts = PlantCharts::new(charts, message);
+        plant_charts
+    }
+    pub fn update_charts(
+        &self,
+        message: M,
+        graph_data: Vec<GraphData>,
+        sensor: Sensortypes,
+    ) -> PlantCharts<M> {
+        PlantCharts::<M>::create_charts(message, graph_data, sensor)
     }
 }
 
