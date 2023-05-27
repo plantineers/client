@@ -296,11 +296,42 @@ mod tests {
         let (plantbuddy, cmd) = Plantbuddy::new(());
         assert_eq!(plantbuddy.is_logged_in, LoginState::NotLoggedIn);
         assert_eq!(plantbuddy.active_tab, 0);
+        assert_eq!(plantbuddy.active_tab, 0);
     }
 
     #[test]
     fn test_plantbuddy_title() {
         let (plantbuddy, _) = Plantbuddy::new(());
         assert_eq!(plantbuddy.title(), "Plantbuddy");
+    }
+
+    #[test]
+    fn test_login_state() {
+        let (mut plantbuddy, _) = Plantbuddy::new(());
+        let user = TempCreationUser {
+            name: "test".to_string(),
+            password: "test".to_string(),
+            role: PlantBuddyRole::User.into(),
+        };
+
+        assert_eq!(plantbuddy.is_logged_in, LoginState::NotLoggedIn);
+        let _ = plantbuddy.update(Message::Login(LoginMessage::Login(RequestResult::Ok(
+            user.clone(),
+        ))));
+        assert_eq!(plantbuddy.is_logged_in, LoginState::LoggedIn);
+    }
+
+    #[test]
+    fn test_active_tab() {
+        let (mut plantbuddy, _) = Plantbuddy::new(());
+        assert_eq!(plantbuddy.active_tab, 0);
+        plantbuddy.update(Message::TabSelected(2));
+        assert_eq!(plantbuddy.active_tab, 2);
+    }
+
+    #[test]
+    fn test_icon_conversion() {
+        assert_eq!(char::from(Icon::User), '\u{ea77}');
+        assert_eq!(char::from(Icon::Homescreen), '\u{e88a}');
     }
 }
