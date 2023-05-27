@@ -41,7 +41,10 @@ impl LogoutTab {
     /// # Returns
     /// A `LogoutTab` instance with `show_modal` set to false and `last_message` set to None.
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            show_modal: true,
+            last_message: None,
+        }
     }
 
     /// Updates the `LogoutTab` based on the provided `LogoutMessage`.

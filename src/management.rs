@@ -408,7 +408,9 @@ impl Tab for ManagementTab {
             .push(refresh_row)
             .push(scrollable)
             .push(if self.error_message != String::new() {
-                Text::new(&self.error_message).style(Color::from_rgb(1.0, 0.0, 0.0))
+                Text::new(&self.error_message)
+                    .size(30)
+                    .style(Color::from_rgb(1.0, 0.0, 0.0))
             } else {
                 Text::new("")
             })

@@ -189,6 +189,7 @@ impl Tab for LoginTab {
                 .push(
                     TextInput::new("Password", &self.password)
                         .on_input(LoginMessage::PasswordChanged)
+                        .on_submit(LoginMessage::LoginPressed)
                         .padding(10)
                         .size(32)
                         .password(),
