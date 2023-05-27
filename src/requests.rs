@@ -5,6 +5,7 @@ use base64::{
     engine::{self, general_purpose},
     Engine as _,
 };
+use log::info;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::hash::Hash;
@@ -39,6 +40,7 @@ impl Default for TempCreationUser {
 pub type RequestResult<T> = Result<T, String>;
 
 pub async fn login(username: String, password: String) -> RequestResult<TempCreationUser> {
+    info!("Login Server request");
     let client = reqwest::Client::new();
     let response = client
         .get(ENDPOINT.to_string() + "user/login")
