@@ -70,7 +70,7 @@ fn main() {
     Plantbuddy::run(Settings {
         antialiasing: false,
         window: window::Settings {
-            size: (1280, 720),
+            size: (1920, 1080),
             position: window::Position::Centered,
             ..window::Settings::default()
         },
@@ -146,7 +146,10 @@ impl Application for Plantbuddy {
 
                         // Update the logged in user in the management tab
                         self.management_tab.logged_in_user = role.clone();
-                        self.management_tab.update(ManagementMessage::GetUsers);
+                        return self
+                            .management_tab
+                            .update(ManagementMessage::GetUsersPressed)
+                            .map(Message::Management);
                     }
                 }
                 return self.login_page.update(message).map(Message::Login);
@@ -161,7 +164,9 @@ impl Application for Plantbuddy {
                     self.user = TempCreationUser::default()
                 }
             }
-            Message::Management(message) => self.management_tab.update(message),
+            Message::Management(message) => {
+                return self.management_tab.update(message).map(Message::Management);
+            }
         }
         Command::none()
     }
