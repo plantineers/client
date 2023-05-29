@@ -1,64 +1,33 @@
-use crate::graphs::{PlantChart, PlantCharts};
-use crate::home::HomeMessage;
-use crate::requests::{get_graphs, get_plant_details, GraphData, PlantData};
+use crate::graphs::PlantCharts;
+use crate::requests::{get_all_plant_ids, get_graphs, get_plant_details, GraphData, PlantMetadata};
 use crate::{Icon, Message, Tab};
-use color_eyre::owo_colors::OwoColorize;
 use iced::alignment::{Horizontal, Vertical};
-use iced::widget::{column, container, row, Button, Column, Container, Row, Text, TextInput};
-use iced::{Application, Element, Length};
+use iced::widget::{Button, Column, Container, Row, Text, TextInput};
+use iced::{Element, Length};
 use iced_aw::tab_bar::TabLabel;
-use iced_core::keyboard::KeyCode::C;
 use iced_core::Alignment::Center;
-use itertools::Itertools;
 use log::info;
 use plotters::prelude::*;
-use plotters_iced::{Chart, ChartBuilder, ChartWidget, DrawingBackend};
+use plotters_iced::ChartWidget;
 use std::vec;
 
 #[derive(Debug, Clone)]
 pub struct DetailPlant {
     pub id: String,
-    pub data: PlantData,
+    pub data: PlantMetadata,
     pub charts: PlantCharts<DetailMessage>,
 }
 
 impl DetailPlant {
-    pub fn new(&mut self, id: String, graph_data: Vec<GraphData>) -> Self {
-        let charts = self.create_charts(DetailMessage::Load, graph_data, Sensortypes::Feuchtigkeit);
+    pub fn new(id: String, graph_data: Vec<GraphData>) -> Self {
+        let charts =
+            PlantCharts::create_charts(DetailMessage::Load, graph_data, Sensortypes::Feuchtigkeit);
         let plant_data = get_plant_details(id).unwrap();
-        let plant = DetailPlant {
-            id: plant_data.id.to_string(),
-            data: plant_data,
+        DetailPlant {
+            id: String::new(),
+            data: plant_data.0,
             charts,
-        };
-        plant
-    }
-    pub fn create_charts(
-        &self,
-        message: DetailMessage,
-        graph_data: Vec<GraphData>,
-        sensor: Sensortypes,
-    ) -> PlantCharts<DetailMessage> {
-        let mut charts = Vec::new();
-        for data in &graph_data {
-            let chart = PlantChart::new(
-                format!("{:?}", sensor),
-                (0..data.timestamps.len() as i32).collect_vec(),
-                data.values.clone(),
-                sensor.get_color(),
-            );
-            charts.push(chart);
         }
-        let mut plant_charts = PlantCharts::new(charts, message);
-        plant_charts
-    }
-    pub fn update_charts(
-        &mut self,
-        message: DetailMessage,
-        graph_data: Vec<GraphData>,
-        sensor: Sensortypes,
-    ) {
-        self.charts = self.create_charts(message, graph_data, sensor);
     }
 }
 #[derive(Debug, Clone, PartialEq)]
@@ -99,15 +68,14 @@ impl Sensortypes {
 impl DetailPage {
     pub fn new() -> DetailPage {
         let plant = DetailPlant {
-            id: "1".to_string(),
-            data: PlantData::default(),
+            id: String::new(),
+            data: PlantMetadata::default(),
             charts: PlantCharts::new(Vec::new(), DetailMessage::Loaded),
         };
-        let detail_page = DetailPage {
-            plant: plant,
+        DetailPage {
+            plant,
             message: DetailMessage::Load,
-        };
-        detail_page
+        }
     }
     pub fn update(&mut self, message: DetailMessage) {
         info!("Updating detail page");
@@ -118,14 +86,18 @@ impl DetailPage {
             DetailMessage::PlantData(id) => {
                 let plant_data = get_plant_details(id.clone()).unwrap();
                 let graph_data = get_graphs(vec![id.clone()], "soil-moisture".to_string());
-                self.plant = self.plant.new(id, graph_data.unwrap());
+                self.plant = DetailPlant::new(id, graph_data.unwrap());
                 self.message = DetailMessage::Loaded;
             }
             DetailMessage::SwitchGraph(sensor_types) => {
                 let sensor_name = sensor_types.get_name();
                 let graph_data = get_graphs(vec!["1".to_string()], sensor_name);
-                self.plant
-                    .update_charts(DetailMessage::Loaded, graph_data.unwrap(), sensor_types);
+                self.plant.charts = PlantCharts::update_charts(
+                    &self.plant.charts,
+                    DetailMessage::Loaded,
+                    graph_data.unwrap(),
+                    sensor_types,
+                );
                 self.message = DetailMessage::Loaded;
             }
             DetailMessage::Loaded => {}
@@ -177,7 +149,12 @@ impl Tab for DetailPage {
                 .push(
                     Button::new(Text::new("Andere Pflanze anzeigen")).on_press(DetailMessage::Load),
                 );
-            let chart_col = Column::new().push(row).push(chart);
+            let container = Container::new(chart)
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .center_x()
+                .center_y();
+            let chart_col = Column::new().push(row).push(container);
             let row = Row::new()
                 .push(care_tip_col)
                 .push(chart_col)
@@ -185,6 +162,21 @@ impl Tab for DetailPage {
                 .align_items(Center);
             row
         } else {
+            let ids = get_all_plant_ids().unwrap();
+            info!("Got all plant ids: {:?}", ids);
+            let mut id_and_name = Vec::new();
+            for id in ids {
+                let plant_data = get_plant_details(id.clone()).unwrap();
+                id_and_name.push((id, plant_data.0.name));
+            }
+            let mut id_name_column: Column<DetailMessage> = Column::new();
+            for id in id_and_name {
+                let id_name_row = Row::new()
+                    .push(Text::new(id.0.clone()))
+                    .push(Text::new(id.1.clone()))
+                    .spacing(20);
+                id_name_column = id_name_column.push(id_name_row);
+            }
             let row = Row::new()
                 .push(
                     TextInput::new("Keine Pflanze ausgewählt...", &self.plant.id)
@@ -196,6 +188,8 @@ impl Tab for DetailPage {
                 )
                 .spacing(20)
                 .align_items(Center);
+            let column = Column::new().push(id_name_column).push(row);
+            let row = Row::new().push(column).spacing(20).align_items(Center);
             row
         };
         let content: Element<'_, DetailMessage> = Container::new(row)

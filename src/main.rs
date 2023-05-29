@@ -183,12 +183,8 @@ impl Application for Plantbuddy {
                             .update(ManagementMessage::GetUsersPressed)
                             .map(Message::Management);
                     }
-                    PlantBuddyRole::User => {
-                        self.is_logged_in = true;
-                        self.role = PlantBuddyRole::User;
-                    }
-                    PlantBuddyRole::NotLoggedIn => {}
                 }
+                return self.login_page.update(message).map(Message::Login);
             }
             Message::Home(message) => self.home_page.update(message),
             Message::Detail(message) => self.detail_page.update(message),
@@ -205,6 +201,7 @@ impl Application for Plantbuddy {
                 return self.management_tab.update(message).map(Message::Management);
             }
         }
+        Command::none()
     }
 
     /// Returns the view of the `Plantbuddy` application.

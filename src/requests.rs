@@ -8,8 +8,6 @@ use base64::{
 use log::info;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::hash::Hash;
-use std::ops::Range;
 
 const ENDPOINT: &str = "https://pb.mfloto.com/v1/";
 
@@ -62,13 +60,14 @@ pub async fn login(username: String, password: String) -> RequestResult<TempCrea
             "Basic ".to_string() + &encode_credentials(username.clone(), password.clone()),
         )
         .send()
-        .await?;
+        .await
+        .map_err(|e| e.to_string())?;
 
     let result = response.error_for_status_ref().map(|_| ());
 
     match result {
         Ok(_) => {
-            let res = response.text().await?;
+            let res = response.text().await.map_err(|e| e.to_string())?;
             let v: Value = serde_json::from_str(&res).unwrap();
             let role_value = v["role"]
                 .as_u64()
@@ -153,37 +152,6 @@ pub async fn get_all_users(username: String, password: String) -> RequestResult<
     }
 }
 
-/// Creates a new user with the given username, password, and user data.
-///
-/// # Arguments
-///
-/// * `username` - A string slice that holds the username.
-/// * `password` - A string slice that holds the password.
-/// * `user` - A `TempCreationUser` struct representing the user to create.
-///
-/// # Returns
-///
-/// Returns a `RequestResult` indicating whether the user was created successfully.
-#[derive(Deserialize, Debug, Clone)]
-pub struct PlantData {
-    pub id: i32,
-    pub name: String,
-    pub description: String,
-    pub location: String,
-    pub additionalCareTips: Vec<String>,
-}
-
-impl Default for PlantData {
-    fn default() -> Self {
-        Self {
-            id: 1,
-            name: String::new(),
-            description: String::new(),
-            location: String::new(),
-            additionalCareTips: Vec::new(),
-        }
-    }
-}
 #[tokio::main(flavor = "current_thread")]
 pub async fn get_all_plant_ids() -> Result<Vec<String>, reqwest::Error> {
     let client = reqwest::Client::new();
@@ -204,8 +172,41 @@ pub async fn get_all_plant_ids() -> Result<Vec<String>, reqwest::Error> {
     }
     Ok(ids)
 }
+#[derive(Deserialize, Debug, Clone, Default)]
+pub struct PlantMetadata {
+    pub name: String,
+    pub description: String,
+    pub location: String,
+    pub additionalCareTips: Vec<String>,
+    pub plantGroup: PlantGroupMetadata,
+}
+
+#[derive(Deserialize, Debug, Clone, Default)]
+pub struct PlantGroupMetadata {
+    pub id: i32,
+    pub name: String,
+    pub description: String,
+    pub careTips: Vec<String>,
+    pub sensorRanges: Vec<SensorRange>,
+}
+
+#[derive(Deserialize, Debug, Clone, Default)]
+pub struct SensorRange {
+    pub sensorType: SensorType,
+    pub min: i32,
+    pub max: i32,
+}
+
+#[derive(Deserialize, Debug, Clone, Default)]
+pub struct SensorType {
+    pub name: String,
+    pub unit: String,
+}
+
 #[tokio::main(flavor = "current_thread")]
-pub async fn get_plant_details(plant_id: String) -> Result<PlantData, reqwest::Error> {
+pub async fn get_plant_details(
+    plant_id: String,
+) -> Result<(PlantMetadata, PlantGroupMetadata), reqwest::Error> {
     let client = reqwest::Client::new();
     let response = client
         .get(ENDPOINT.to_string() + &format!("plant/{}", plant_id))
@@ -213,10 +214,12 @@ pub async fn get_plant_details(plant_id: String) -> Result<PlantData, reqwest::E
         .send()
         .await?;
 
-    let details = response.error_for_status()?.json().await?;
-    info!("{:?}", details);
-    Ok(details)
+    let details: PlantMetadata = response.error_for_status()?.json().await?;
+    let plant_group = details.plantGroup.clone();
+
+    Ok((details, plant_group))
 }
+
 #[derive(Deserialize, Debug)]
 pub struct GraphData {
     pub values: Vec<i32>,
@@ -259,7 +262,18 @@ pub async fn get_graphs(
 
     Ok(graphs)
 }
-#[tokio::main(flavor = "current_thread")]
+
+/// Creates a new user with the given username, password, and user data.
+///
+/// # Arguments
+///
+/// * `username` - A string slice that holds the username.
+/// * `password` - A string slice that holds the password.
+/// * `user` - A `TempCreationUser` struct representing the user to create.
+///
+/// # Returns
+///
+/// Returns a `RequestResult` indicating whether the user was created successfully.
 pub async fn create_user(
     username: String,
     password: String,
@@ -271,7 +285,7 @@ pub async fn create_user(
         .post(ENDPOINT.to_string() + "user")
         .header(
             "Authorization",
-            "Basic ".to_string() + &encode_credentials(username.clone(), password.clone()),
+            "Basic".to_string() + &encode_credentials(username.clone(), password.clone()),
         )
         .json(&user)
         .send()

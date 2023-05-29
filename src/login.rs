@@ -1,4 +1,3 @@
-use color_eyre::owo_colors::OwoColorize;
 use iced::futures::executor::block_on;
 use iced::futures::TryStreamExt;
 use iced::theme::{self, Theme};

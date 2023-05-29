@@ -1,5 +1,4 @@
 use crate::{Icon, Message, Tab};
-use color_eyre::owo_colors::OwoColorize;
 use iced::Alignment::Center;
 use iced::{
     alignment::{Horizontal, Vertical},

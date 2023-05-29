@@ -1,15 +1,10 @@
 use crate::detail::{DetailMessage, DetailPage, Sensortypes};
 use crate::requests::GraphData;
-use crate::Message;
-use color_eyre::owo_colors::OwoColorize;
-use iced::widget::Container;
-use iced::{Element, Length};
+use iced::{Application, Element, Length};
 use itertools::{enumerate, Itertools};
 use plotters::chart::SeriesLabelPosition;
-use plotters::coord::Shift;
-use plotters::drawing::DrawingArea;
 use plotters::element::PathElement;
-use plotters::prelude::RGBColor;
+use plotters::prelude::{BitMapBackend, RGBColor, YELLOW};
 use plotters::series::LineSeries;
 use plotters::style::{Color, FontTransform, IntoFont, ShapeStyle, BLACK, BLUE, GREEN, RED, WHITE};
 use plotters_iced::{Chart, ChartBuilder, ChartWidget, DrawingBackend};
@@ -99,12 +94,29 @@ impl<M: 'static> PlantCharts<M> {
 impl<M: 'static + Clone> Chart<M> for PlantCharts<M> {
     type State = ();
     fn build_chart<DB: DrawingBackend>(&self, state: &Self::State, mut builder: ChartBuilder<DB>) {
+        //Change background color
         let mut chart = builder
             .caption("Plant Charts", ("sans-serif", 30).into_font())
             .margin(10)
             .x_label_area_size(40)
             .y_label_area_size(40)
             .build_cartesian_2d(0..self.largest_x_y().0, 0..self.largest_x_y().1)
+            .unwrap();
+        chart
+            .configure_mesh()
+            .bold_line_style(BLACK.mix(0.3))
+            .light_line_style(BLACK.mix(0.1))
+            .axis_style(BLACK.mix(0.5))
+            .draw()
+            .expect("failed to draw mesh");
+        chart
+            .configure_series_labels()
+            .legend_area_size(50)
+            .border_style(BLACK)
+            .background_style(WHITE.mix(0.8))
+            .position(SeriesLabelPosition::UpperLeft)
+            .label_font("Hectic")
+            .draw()
             .unwrap();
         for plantchart in self.charts.iter() {
             let color = plantchart.get_color();
@@ -121,16 +133,6 @@ impl<M: 'static + Clone> Chart<M> for PlantCharts<M> {
                 .label(plantchart.name.as_str())
                 .legend(move |(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], color));
         }
-        chart.configure_mesh().draw().expect("failed to draw mesh");
-        chart
-            .configure_series_labels()
-            .legend_area_size(50)
-            .border_style(BLACK)
-            .background_style(WHITE.mix(0.8))
-            .position(SeriesLabelPosition::UpperLeft)
-            .label_font("Hectic")
-            .draw()
-            .unwrap();
     }
 }
 
