@@ -6,7 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-iced = { version = "0.9.0", default-features=false, features = ["canvas", "glow", "tokio", "debug"] }
+iced = { version = "0.9.0", default-features=false, features = ["canvas", "glow", "tokio", "debug", "image"] }
+iced_aw = { version = "0.5", default-features = false, features = ["tab_bar", "tabs", "card", "modal",] }
 plotters = "0.3.0"
 plotters-iced = "0.8.0"
 tokio = { version = "1.0", features = ["full"] }
@@ -18,4 +19,5 @@ reqwest = { version = "0.11.16", features = ["json"] }
 color-eyre = "0.6.2"
 serde = { version = "1.0.160", features = ["derive"] }
 serde_json = "1.0.96"
-
+log = "0.4"
+base64 = "0.21.0"
