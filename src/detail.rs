@@ -1,6 +1,6 @@
 use crate::graphs::PlantCharts;
 use crate::requests::{get_all_plant_ids, get_graphs, get_plant_details, GraphData, PlantMetadata};
-use crate::{Icon, Message, MyStylesheet, Tab};
+use crate::{Icon, Message, MyStylesheet, Tab, TEXT_SIZE};
 use iced::alignment::{Horizontal, Vertical};
 use iced::widget::{Button, Column, Container, Row, Text, TextInput};
 use iced::{theme, Element, Length};
@@ -9,6 +9,7 @@ use iced_core::Alignment::Center;
 use log::info;
 use plotters::prelude::*;
 use plotters_iced::ChartWidget;
+use std::fmt::format;
 use std::vec;
 
 #[derive(Debug, Clone)]
@@ -63,6 +64,15 @@ impl Sensortypes {
             Sensortypes::Luftfeuchtigkeit => RGBColor(0, 255, 0),
             Sensortypes::Temperatur => RGBColor(255, 0, 0),
         }
+    }
+    pub fn iter() -> impl Iterator<Item = Sensortypes> {
+        [
+            Sensortypes::Feuchtigkeit,
+            Sensortypes::Luftfeuchtigkeit,
+            Sensortypes::Temperatur,
+        ]
+        .iter()
+        .copied()
     }
 }
 impl DetailPage {
@@ -125,10 +135,6 @@ impl Tab for DetailPage {
         info!("{:?}", self.message);
         let row = if self.message != DetailMessage::Load {
             let plant = &self.plant;
-            let mut care_tip_col: Column<DetailMessage> = Column::new();
-            for caretip in &plant.data.additionalCareTips {
-                care_tip_col = care_tip_col.push(Text::new(caretip.clone()));
-            }
             let chart = ChartWidget::new(plant.charts.clone());
             let container: Container<DetailMessage> = Container::new(chart)
                 .style(theme::Container::Custom(Box::new(MyStylesheet)))
@@ -136,31 +142,69 @@ impl Tab for DetailPage {
                 .height(Length::Fill)
                 .center_x()
                 .center_y();
-            let row: Row<DetailMessage> = Row::new()
-                .push(Text::new(plant.data.name.clone()))
-                .spacing(20)
-                .push(Text::new(plant.data.description.clone()))
-                .spacing(20)
-                .push(Text::new(plant.data.location.clone()))
+            let mut detail_column: Column<DetailMessage> = Column::new()
+                .push(
+                    Text::new(format!("Pflanzenname: {}", plant.data.name.clone())).size(TEXT_SIZE),
+                )
                 .spacing(20)
                 .push(
-                    Button::new(Text::new("Feuchtigkeit"))
+                    Text::new(format!(
+                        "Pflanzenbeschreibung: {}",
+                        plant.data.description.clone()
+                    ))
+                    .size(TEXT_SIZE),
+                )
+                .spacing(20)
+                .push(
+                    Text::new(format!("Pflanzenstandort: {}", plant.data.location.clone()))
+                        .size(TEXT_SIZE),
+                )
+                .spacing(20)
+                .push(
+                    Text::new(format!("Pflanzenart: {}", plant.data.species.clone()))
+                        .size(TEXT_SIZE),
+                )
+                .spacing(20)
+                .push(
+                    Text::new(format!(
+                        "Pflanzengruppe: {}",
+                        plant.data.plantGroup.name.clone()
+                    ))
+                    .size(TEXT_SIZE),
+                )
+                .spacing(20)
+                .push(Text::new("Pflegetipps: ").size(TEXT_SIZE));
+            for caretip in &plant.data.additionalCareTips {
+                detail_column = detail_column.push(Text::new(caretip.clone()).size(TEXT_SIZE));
+            }
+            detail_column = detail_column.push(Text::new("Gruppen Pflegetipps: ").size(TEXT_SIZE));
+            for group_caretip in &plant.data.plantGroup.careTips {
+                detail_column =
+                    detail_column.push(Text::new(group_caretip.clone()).size(TEXT_SIZE));
+            }
+            let row: Row<DetailMessage> = Row::new()
+                .push(
+                    Button::new(Text::new("Feuchtigkeit").size(TEXT_SIZE))
                         .on_press(DetailMessage::SwitchGraph(Sensortypes::Feuchtigkeit)),
                 )
+                .spacing(20)
                 .push(
-                    Button::new(Text::new("Luftfeuchtigkeit"))
+                    Button::new(Text::new("Luftfeuchtigkeit").size(TEXT_SIZE))
                         .on_press(DetailMessage::SwitchGraph(Sensortypes::Luftfeuchtigkeit)),
                 )
+                .spacing(20)
                 .push(
-                    Button::new(Text::new("Temperatur"))
+                    Button::new(Text::new("Temperatur").size(TEXT_SIZE))
                         .on_press(DetailMessage::SwitchGraph(Sensortypes::Temperatur)),
                 )
+                .spacing(20)
                 .push(
-                    Button::new(Text::new("Andere Pflanze anzeigen")).on_press(DetailMessage::Load),
+                    Button::new(Text::new("Andere Pflanze anzeigen").size(TEXT_SIZE))
+                        .on_press(DetailMessage::Load),
                 );
             let chart_col = Column::new().push(row).push(container);
             let row = Row::new()
-                .push(care_tip_col)
+                .push(detail_column)
                 .push(chart_col)
                 .spacing(20)
                 .align_items(Center);
@@ -173,21 +217,30 @@ impl Tab for DetailPage {
                 let plant_data = get_plant_details(id.clone()).unwrap();
                 id_and_name.push((id, plant_data.0.name));
             }
-            let mut id_name_column: Column<DetailMessage> = Column::new();
+            let mut id_name_column: Column<DetailMessage> = Column::new().push(
+                Row::new()
+                    .push(Text::new("ID").size(TEXT_SIZE))
+                    .push(Text::new("Name").size(TEXT_SIZE))
+                    .spacing(20),
+            );
             for id in id_and_name {
                 let id_name_row = Row::new()
-                    .push(Text::new(id.0.clone()))
-                    .push(Text::new(id.1.clone()))
+                    .push(Text::new(id.0.clone()).size(TEXT_SIZE))
+                    .push(Text::new(id.1.clone()).size(TEXT_SIZE))
                     .spacing(20);
                 id_name_column = id_name_column.push(id_name_row);
             }
             let row = Row::new()
                 .push(
-                    TextInput::new("Keine Pflanze ausgewählt...", &self.plant.id)
-                        .on_input(DetailMessage::Search),
+                    TextInput::new(
+                        "Trage die ID der Pflanze ein, die du betrachten möchtest",
+                        &self.plant.id,
+                    )
+                    .size(TEXT_SIZE)
+                    .on_input(DetailMessage::Search),
                 )
                 .push(
-                    Button::new(Text::new("Anzeigen"))
+                    Button::new(Text::new("Anzeigen").size(TEXT_SIZE))
                         .on_press(DetailMessage::PlantData(self.plant.id.clone())),
                 )
                 .spacing(20)

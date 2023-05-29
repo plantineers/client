@@ -1,18 +1,21 @@
 use crate::detail::Sensortypes;
 use crate::graphs::{PlantChart, PlantCharts};
-use crate::requests::{create_plant, get_all_plant_ids, get_graphs, GraphData, PlantMetadata};
-use crate::{Icon, Message, MyStylesheet, Tab};
+use crate::requests::{
+    create_group, create_plant, get_all_plant_ids, get_graphs, GraphData, PlantGroupMetadata,
+    PlantMetadata,
+};
+use crate::{Icon, Message, MyStylesheet, Tab, TEXT_SIZE};
 use iced::alignment::{Horizontal, Vertical};
 use iced::widget::{Button, Column, Container, Row, Text, TextInput};
 use iced::{theme, Element, Length, Renderer};
 use iced_aw::{Card, Modal, TabLabel};
-use iced_core::Alignment::Center;
-use itertools::Itertools;
+use itertools::{enumerate, Itertools};
 use plotters_iced::ChartWidget;
 
 #[derive(Debug, Clone)]
 pub enum HomeMessage {
-    OpenModal,
+    OpenModalPlant,
+    OpenModalGroup,
     CloseModal,
     CancelButtonPressed,
     OkButtonPressed,
@@ -24,8 +27,12 @@ pub enum HomeMessage {
 
 pub(crate) struct HomePage {
     show_modal: bool,
+    modal_is_plant: bool,
     new_plant: PlantMetadata,
+    new_group: PlantGroupMetadata,
     additionalCareTips: String,
+    sensor_border: Vec<String>,
+    careTips: String,
     group: String,
     charts: PlantCharts<HomeMessage>,
     active_sensor: Sensortypes,
@@ -49,12 +56,16 @@ impl HomePage {
         let charts = PlantCharts::new(vec_chart, HomeMessage::Plant);
         HomePage {
             show_modal: false,
+            modal_is_plant: true,
             new_plant: PlantMetadata::default(),
             additionalCareTips: String::new(),
+            careTips: String::new(),
             charts,
             active_sensor: Sensortypes::Luftfeuchtigkeit,
             group: String::new(),
             ids,
+            new_group: PlantGroupMetadata::default(),
+            sensor_border: vec!["".to_string(), "".to_string(), "".to_string()],
         }
     }
 
@@ -83,7 +94,12 @@ impl HomePage {
                     sensortypes,
                 )
             }
-            HomeMessage::OpenModal => {
+            HomeMessage::OpenModalPlant => {
+                self.modal_is_plant = true;
+                self.show_modal = true;
+            }
+            HomeMessage::OpenModalGroup => {
+                self.modal_is_plant = false;
                 self.show_modal = true;
             }
             HomeMessage::FieldUpdated(index, value) => match index {
@@ -105,18 +121,57 @@ impl HomePage {
                 5 => {
                     self.group = value;
                 }
+                6 => {
+                    self.new_group.name = value;
+                }
+                7 => {
+                    self.new_group.description = value;
+                }
+                8 => {
+                    self.careTips = value;
+                }
+                9 => {
+                    self.sensor_border[0] = value;
+                }
+                10 => {
+                    self.sensor_border[1] = value;
+                }
+                11 => {
+                    self.sensor_border[2] = value;
+                }
                 _ => (),
             },
             HomeMessage::CloseModal => self.show_modal = false,
             HomeMessage::CancelButtonPressed => self.show_modal = false,
             HomeMessage::OkButtonPressed => {
-                self.new_plant.additionalCareTips = self
-                    .additionalCareTips
-                    .split(',')
-                    .map(String::from)
-                    .collect();
-                self.show_modal = false;
-                let _ = create_plant(self.new_plant.clone(), self.group.clone().parse().unwrap());
+                if self.modal_is_plant {
+                    self.new_plant.additionalCareTips = self
+                        .additionalCareTips
+                        .split(',')
+                        .map(String::from)
+                        .collect();
+                    self.show_modal = false;
+                    let _ =
+                        create_plant(self.new_plant.clone(), self.group.clone().parse().unwrap());
+                } else {
+                    self.new_group.careTips = self.careTips.split(',').map(String::from).collect();
+                    for (i, sensor) in enumerate(self.new_group.sensorRanges.iter_mut()) {
+                        sensor.max = self.sensor_border.clone()[i]
+                            .split(',')
+                            .next()
+                            .unwrap()
+                            .parse()
+                            .unwrap();
+                        sensor.min = self.sensor_border.clone()[i]
+                            .split(',')
+                            .last()
+                            .unwrap()
+                            .parse()
+                            .unwrap();
+                    }
+                    self.show_modal = false;
+                    let _ = create_group(self.new_group.clone());
+                }
             }
         }
     }
@@ -134,72 +189,185 @@ impl Tab for HomePage {
     }
     fn content(&self) -> Element<'_, Self::Message> {
         if self.show_modal {
-            let container: Container<HomeMessage> = Container::new(Text::new("Neue Pflanze"))
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .align_x(Horizontal::Center)
-                .align_y(Vertical::Center);
-            let content: Element<'_, HomeMessage> = Modal::new(self.show_modal, container, || {
-                Card::new(
-                    Text::new("Neue Pflanze").horizontal_alignment(Horizontal::Center),
-                    Column::new()
-                        .push(
-                            TextInput::new("Pflanzenname", &self.new_plant.name)
-                                .on_input(|input| HomeMessage::FieldUpdated(0, input)),
-                        )
-                        .spacing(20)
-                        .push(
-                            TextInput::new("Beschreibung der Pflanze", &self.new_plant.description)
-                                .on_input(|input| HomeMessage::FieldUpdated(1, input)),
-                        )
-                        .spacing(20)
-                        .push(
-                            TextInput::new("Position der Pflanze", &self.new_plant.location)
-                                .on_input(|input| HomeMessage::FieldUpdated(2, input)),
-                        )
-                        .spacing(20)
-                        .push(
-                            TextInput::new("Pflegehinweise", &self.additionalCareTips)
-                                .on_input(|input| HomeMessage::FieldUpdated(3, input)),
-                        )
-                        .spacing(20)
-                        .push(
-                            TextInput::new("Pflanzenspecies", &self.new_plant.species)
-                                .on_input(|input| HomeMessage::FieldUpdated(4, input)),
-                        )
-                        .spacing(20)
-                        .push(
-                            TextInput::new("Pflanzengruppe", &self.group)
-                                .on_input(|input| HomeMessage::FieldUpdated(5, input)),
-                        )
-                        .spacing(20),
-                )
-                .foot(
-                    Row::new()
-                        .spacing(10)
-                        .padding(5)
+            if self.modal_is_plant {
+                let container: Container<HomeMessage> =
+                    Container::new(Text::new("Neue Pflanze").size(TEXT_SIZE))
                         .width(Length::Fill)
-                        .push(
-                            Button::new(
-                                Text::new("Cancel").horizontal_alignment(Horizontal::Center),
-                            )
-                            .width(Length::Fill)
-                            .on_press(HomeMessage::CancelButtonPressed),
+                        .height(Length::Fill)
+                        .align_x(Horizontal::Center)
+                        .align_y(Vertical::Center);
+                let content: Element<'_, HomeMessage> =
+                    Modal::new(self.show_modal, container, || {
+                        Card::new(
+                            Text::new("Neue Pflanze")
+                                .size(TEXT_SIZE)
+                                .horizontal_alignment(Horizontal::Center),
+                            Column::new()
+                                .push(
+                                    TextInput::new("Pflanzenname", &self.new_plant.name)
+                                        .size(TEXT_SIZE)
+                                        .on_input(|input| HomeMessage::FieldUpdated(0, input)),
+                                )
+                                .spacing(20)
+                                .push(
+                                    TextInput::new(
+                                        "Beschreibung der Pflanze",
+                                        &self.new_plant.description,
+                                    )
+                                    .size(TEXT_SIZE)
+                                    .on_input(|input| HomeMessage::FieldUpdated(1, input)),
+                                )
+                                .spacing(20)
+                                .push(
+                                    TextInput::new(
+                                        "Position der Pflanze",
+                                        &self.new_plant.location,
+                                    )
+                                    .size(TEXT_SIZE)
+                                    .on_input(|input| HomeMessage::FieldUpdated(2, input)),
+                                )
+                                .spacing(20)
+                                .push(
+                                    TextInput::new("Pflegehinweise", &self.additionalCareTips)
+                                        .size(TEXT_SIZE)
+                                        .on_input(|input| HomeMessage::FieldUpdated(3, input)),
+                                )
+                                .spacing(20)
+                                .push(
+                                    TextInput::new("Pflanzenspecies", &self.new_plant.species)
+                                        .size(TEXT_SIZE)
+                                        .on_input(|input| HomeMessage::FieldUpdated(4, input)),
+                                )
+                                .spacing(20)
+                                .push(
+                                    TextInput::new("Pflanzengruppe", &self.group)
+                                        .size(TEXT_SIZE)
+                                        .on_input(|input| HomeMessage::FieldUpdated(5, input)),
+                                )
+                                .spacing(20),
                         )
-                        .push(
-                            Button::new(Text::new("Ok").horizontal_alignment(Horizontal::Center))
+                        .foot(
+                            Row::new()
+                                .spacing(10)
+                                .padding(5)
                                 .width(Length::Fill)
-                                .on_press(HomeMessage::OkButtonPressed),
-                        ),
-                )
-                .max_width(300.0)
-                .on_close(HomeMessage::CloseModal)
-                .into()
-            })
-            .backdrop(HomeMessage::CloseModal)
-            .on_esc(HomeMessage::CloseModal)
-            .into();
-            content.map(Message::Home)
+                                .push(
+                                    Button::new(
+                                        Text::new("Cancel")
+                                            .size(TEXT_SIZE)
+                                            .horizontal_alignment(Horizontal::Center),
+                                    )
+                                    .width(Length::Fill)
+                                    .on_press(HomeMessage::CancelButtonPressed),
+                                )
+                                .push(
+                                    Button::new(
+                                        Text::new("Ok")
+                                            .size(TEXT_SIZE)
+                                            .horizontal_alignment(Horizontal::Center),
+                                    )
+                                    .width(Length::Fill)
+                                    .on_press(HomeMessage::OkButtonPressed),
+                                ),
+                        )
+                        .max_width(300.0)
+                        .on_close(HomeMessage::CloseModal)
+                        .into()
+                    })
+                    .backdrop(HomeMessage::CloseModal)
+                    .on_esc(HomeMessage::CloseModal)
+                    .into();
+                content.map(Message::Home)
+            } else {
+                let container: Container<HomeMessage> =
+                    Container::new(Text::new("Neue Gruppe").size(TEXT_SIZE))
+                        .width(Length::Fill)
+                        .height(Length::Fill)
+                        .align_x(Horizontal::Center)
+                        .align_y(Vertical::Center);
+                let content: Element<'_, HomeMessage> =
+                    Modal::new(self.show_modal, container, || {
+                        Card::new(
+                            Text::new("Neue Gruppe")
+                                .size(TEXT_SIZE)
+                                .horizontal_alignment(Horizontal::Center),
+                            Column::new()
+                                .push(
+                                    TextInput::new("Gruppennamen", &self.new_group.name)
+                                        .size(TEXT_SIZE)
+                                        .on_input(|input| HomeMessage::FieldUpdated(6, input)),
+                                )
+                                .spacing(20)
+                                .push(
+                                    TextInput::new(
+                                        "Beschreibung der Gruppe",
+                                        &self.new_group.description,
+                                    )
+                                    .size(TEXT_SIZE)
+                                    .on_input(|input| HomeMessage::FieldUpdated(7, input)),
+                                )
+                                .spacing(20)
+                                .push(
+                                    TextInput::new("Pflegehinweise", &self.careTips)
+                                        .size(TEXT_SIZE)
+                                        .on_input(|input| HomeMessage::FieldUpdated(8, input)),
+                                )
+                                .spacing(20)
+                                .push(
+                                    TextInput::new(
+                                        "Feuchtigkeitsgrenzwerte",
+                                        &self.sensor_border[0],
+                                    )
+                                    .size(TEXT_SIZE)
+                                    .on_input(|input| HomeMessage::FieldUpdated(9, input)),
+                                )
+                                .push(
+                                    TextInput::new(
+                                        "Luftfeuchtigkeitsgrenzwerte",
+                                        &self.sensor_border[1],
+                                    )
+                                    .size(TEXT_SIZE)
+                                    .on_input(|input| HomeMessage::FieldUpdated(10, input)),
+                                )
+                                .push(
+                                    TextInput::new("Temperaturgrenzwerte", &self.sensor_border[2])
+                                        .size(TEXT_SIZE)
+                                        .on_input(|input| HomeMessage::FieldUpdated(11, input)),
+                                ),
+                        )
+                        .foot(
+                            Row::new()
+                                .spacing(10)
+                                .padding(5)
+                                .width(Length::Fill)
+                                .push(
+                                    Button::new(
+                                        Text::new("Cancel")
+                                            .size(TEXT_SIZE)
+                                            .horizontal_alignment(Horizontal::Center),
+                                    )
+                                    .width(Length::Fill)
+                                    .on_press(HomeMessage::CancelButtonPressed),
+                                )
+                                .push(
+                                    Button::new(
+                                        Text::new("Ok")
+                                            .size(TEXT_SIZE)
+                                            .horizontal_alignment(Horizontal::Center),
+                                    )
+                                    .width(Length::Fill)
+                                    .on_press(HomeMessage::OkButtonPressed),
+                                ),
+                        )
+                        .max_width(300.0)
+                        .on_close(HomeMessage::CloseModal)
+                        .into()
+                    })
+                    .backdrop(HomeMessage::CloseModal)
+                    .on_esc(HomeMessage::CloseModal)
+                    .into();
+                content.map(Message::Home)
+            }
         } else {
             let chart_widget = ChartWidget::new(self.charts.clone());
             let container: Container<HomeMessage> = Container::new(chart_widget)
@@ -208,28 +376,37 @@ impl Tab for HomePage {
                 .height(Length::Fill)
                 .center_x()
                 .center_y();
-            let row = Row::new().push(container).push(
-                Column::new()
-                    .push(Button::new("Refresh").on_press(HomeMessage::Refresh))
-                    .spacing(20)
-                    .push(
-                        Button::new("Temperatur")
-                            .on_press(HomeMessage::SwitchGraph(Sensortypes::Temperatur)),
-                    )
-                    .spacing(20)
-                    .push(
-                        Button::new("Luftfeuchtigkeit")
-                            .on_press(HomeMessage::SwitchGraph(Sensortypes::Luftfeuchtigkeit)),
-                    )
-                    .spacing(20)
-                    .push(
-                        Button::new("Feuchtigkeit")
-                            .on_press(HomeMessage::SwitchGraph(Sensortypes::Feuchtigkeit)),
-                    ),
-            );
-            let lower_row: Row<HomeMessage, Renderer> =
-                Row::new().push(Button::new("Add Plant").on_press(HomeMessage::OpenModal));
-            let column = Column::new().push(lower_row).push(row);
+            let row = Row::new()
+                .push(
+                    Button::new(Text::new("Refresh").size(TEXT_SIZE))
+                        .on_press(HomeMessage::Refresh),
+                )
+                .spacing(20)
+                .push(
+                    Button::new(Text::new("Temperatur").size(TEXT_SIZE))
+                        .on_press(HomeMessage::SwitchGraph(Sensortypes::Temperatur)),
+                )
+                .spacing(20)
+                .push(
+                    Button::new(Text::new("Luftfeuchtigkeit").size(TEXT_SIZE))
+                        .on_press(HomeMessage::SwitchGraph(Sensortypes::Luftfeuchtigkeit)),
+                )
+                .spacing(20)
+                .push(
+                    Button::new(Text::new("Feuchtigkeit").size(TEXT_SIZE))
+                        .on_press(HomeMessage::SwitchGraph(Sensortypes::Feuchtigkeit)),
+                );
+            let lower_row: Row<HomeMessage, Renderer> = Row::new()
+                .push(
+                    Button::new(Text::new("Neue Pflanze erstellen").size(TEXT_SIZE))
+                        .on_press(HomeMessage::OpenModalPlant),
+                )
+                .spacing(20)
+                .push(
+                    Button::new(Text::new("Gruppe hinzufügen").size(TEXT_SIZE))
+                        .on_press(HomeMessage::OpenModalGroup),
+                );
+            let column = Column::new().push(row).push(container).push(lower_row);
             let content: Element<'_, HomeMessage> = Container::new(column)
                 .width(Length::Fill)
                 .height(Length::Fill)

@@ -40,7 +40,7 @@ const EXTERNAL_ICON_FONT: Font = iced::Font::External {
     name: "External Icons",
     bytes: include_bytes!("../fonts/MaterialIcons-Regular.ttf"),
 };
-
+const TEXT_SIZE: u16 = 30;
 /// The Icons used in the application.
 enum Icon {
     User,

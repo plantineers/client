@@ -4,6 +4,7 @@ use base64::{
     engine::{self, general_purpose},
     Engine as _,
 };
+use itertools::enumerate;
 use log::info;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -119,6 +120,36 @@ pub async fn create_plant(
 
     Ok(())
 }
+#[tokio::main(flavor = "current_thread")]
+pub async fn create_group(new_group: PlantGroupMetadata) -> Result<(), reqwest::Error> {
+    let mut json = serde_json::to_value(new_group.clone()).unwrap();
+    for (i, sensor) in enumerate(new_group.sensorRanges.iter()) {
+        json["sensorRanges"][i]["sensor"] = json!(sensor.sensorType.name);
+    }
+    info!("{}", json);
+    let client = reqwest::Client::new();
+    let response = client
+        .post(&format!("{}plant-group", ENDPOINT))
+        .header("Authorization", "Basic YWRtaW46MTIzNA==")
+        .json(&json)
+        .send()
+        .await?;
+    let result = response.error_for_status_ref().map(|_| ());
+
+    match result {
+        Ok(_) => {
+            info!("Successfully created Group");
+            Ok(())
+        }
+        Err(e) => {
+            info!("No Group created");
+            Err(e.to_string())
+        }
+    }
+    .expect("TODO: panic message");
+
+    Ok(())
+}
 
 /// Gets all users with the given username and password.
 ///
@@ -214,28 +245,61 @@ pub struct PlantMetadata {
     pub plantGroup: PlantGroupMetadata,
 }
 
-#[derive(Deserialize, Debug, Clone, Default)]
+#[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct PlantGroupMetadata {
-    pub id: i32,
     pub name: String,
     pub description: String,
     pub careTips: Vec<String>,
     pub sensorRanges: Vec<SensorRange>,
 }
+impl Default for PlantGroupMetadata {
+    fn default() -> Self {
+        PlantGroupMetadata {
+            name: String::new(),
+            description: String::new(),
+            careTips: vec![],
+            sensorRanges: vec![
+                SensorRange {
+                    sensorType: SensorType {
+                        name: "soil-moisture".to_string(),
+                        unit: "percent".to_string(),
+                    },
+                    min: 0,
+                    max: 0,
+                },
+                SensorRange {
+                    sensorType: SensorType {
+                        name: "humidity".to_string(),
+                        unit: "percent".to_string(),
+                    },
+                    min: 0,
+                    max: 0,
+                },
+                SensorRange {
+                    sensorType: SensorType {
+                        name: "temperature".to_string(),
+                        unit: "celcius".to_string(),
+                    },
+                    min: 0,
+                    max: 0,
+                },
+            ],
+        }
+    }
+}
 
-#[derive(Deserialize, Debug, Clone, Default)]
+#[derive(Deserialize, Debug, Clone, Default, Serialize)]
 pub struct SensorRange {
+    #[serde(skip_serializing)]
     pub sensorType: SensorType,
     pub min: i32,
     pub max: i32,
 }
-
-#[derive(Deserialize, Debug, Clone, Default)]
+#[derive(Deserialize, Debug, Clone, Default, Serialize)]
 pub struct SensorType {
     pub name: String,
     pub unit: String,
 }
-
 #[tokio::main(flavor = "current_thread")]
 pub async fn get_plant_details(
     plant_id: String,
