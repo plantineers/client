@@ -1,13 +1,13 @@
 use crate::login::PlantBuddyRole;
 use crate::management::User;
 use base64::{
-    alphabet,
     engine::{self, general_purpose},
     Engine as _,
 };
 use log::info;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
+use std::process::id;
 
 const ENDPOINT: &str = "https://pb.mfloto.com/v1/";
 
@@ -87,6 +87,37 @@ pub async fn login(username: String, password: String) -> RequestResult<TempCrea
             Err(e.to_string())
         }
     }
+}
+#[tokio::main(flavor = "current_thread")]
+pub async fn create_plant(
+    new_plant: PlantMetadata,
+    plant_group_id: i32,
+) -> Result<(), reqwest::Error> {
+    let mut json = serde_json::to_value(new_plant).unwrap();
+    json["plantGroupId"] = json!(plant_group_id);
+    info!("{}", json);
+    let client = reqwest::Client::new();
+    let response = client
+        .post(&format!("{}plant", ENDPOINT))
+        .header("Authorization", "Basic YWRtaW46MTIzNA==")
+        .json(&json)
+        .send()
+        .await?;
+    let result = response.error_for_status_ref().map(|_| ());
+
+    match result {
+        Ok(_) => {
+            info!("Successfully created plant");
+            Ok(())
+        }
+        Err(e) => {
+            info!("No Plant created");
+            Err(e.to_string())
+        }
+    }
+    .expect("TODO: panic message");
+
+    Ok(())
 }
 
 /// Gets all users with the given username and password.
@@ -172,12 +203,14 @@ pub async fn get_all_plant_ids() -> Result<Vec<String>, reqwest::Error> {
     }
     Ok(ids)
 }
-#[derive(Deserialize, Debug, Clone, Default)]
+#[derive(Deserialize, Debug, Clone, Default, Serialize)]
 pub struct PlantMetadata {
     pub name: String,
     pub description: String,
+    pub species: String,
     pub location: String,
     pub additionalCareTips: Vec<String>,
+    #[serde(skip_serializing)]
     pub plantGroup: PlantGroupMetadata,
 }
 
@@ -237,7 +270,7 @@ pub async fn get_graphs(
     for plant_id in plant_ids {
         let response = client
             .get(&format!(
-                "{}sensor-data?sensor={}&plant={}&from=2019-01-01T00:00:00.000Z&to=2023-05-20T00:00:00.000Z",
+                "{}sensor-data?sensor={}&plant={}&from=2019-01-01T00:00:00.000Z&to=2023-05-29T23:00:00.000Z",
                 ENDPOINT, sensor_type, plant_id
             ))
             .header("Authorization", "Basic YWRtaW46MTIzNA==")

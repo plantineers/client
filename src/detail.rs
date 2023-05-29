@@ -1,9 +1,9 @@
 use crate::graphs::PlantCharts;
 use crate::requests::{get_all_plant_ids, get_graphs, get_plant_details, GraphData, PlantMetadata};
-use crate::{Icon, Message, Tab};
+use crate::{Icon, Message, MyStylesheet, Tab};
 use iced::alignment::{Horizontal, Vertical};
 use iced::widget::{Button, Column, Container, Row, Text, TextInput};
-use iced::{Element, Length};
+use iced::{theme, Element, Length};
 use iced_aw::tab_bar::TabLabel;
 use iced_core::Alignment::Center;
 use log::info;
@@ -112,7 +112,10 @@ impl Tab for DetailPage {
     type Message = Message;
 
     fn title(&self) -> String {
-        String::from("Detail")
+        if self.message == DetailMessage::Load {
+            return String::from("Verfügbare Pflanzen");
+        }
+        String::from("Detailübersicht")
     }
 
     fn tab_label(&self) -> TabLabel {
@@ -127,6 +130,12 @@ impl Tab for DetailPage {
                 care_tip_col = care_tip_col.push(Text::new(caretip.clone()));
             }
             let chart = ChartWidget::new(plant.charts.clone());
+            let container: Container<DetailMessage> = Container::new(chart)
+                .style(theme::Container::Custom(Box::new(MyStylesheet)))
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .center_x()
+                .center_y();
             let row: Row<DetailMessage> = Row::new()
                 .push(Text::new(plant.data.name.clone()))
                 .spacing(20)
@@ -149,11 +158,6 @@ impl Tab for DetailPage {
                 .push(
                     Button::new(Text::new("Andere Pflanze anzeigen")).on_press(DetailMessage::Load),
                 );
-            let container = Container::new(chart)
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .center_x()
-                .center_y();
             let chart_col = Column::new().push(row).push(container);
             let row = Row::new()
                 .push(care_tip_col)

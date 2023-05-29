@@ -2,6 +2,7 @@ mod graphs;
 use crate::graphs::PlantCharts;
 use iced::alignment::{Horizontal, Vertical};
 use iced::theme::{Custom, Palette};
+use iced::widget::container::{Appearance, StyleSheet};
 use iced::widget::vertical_slider::draw;
 use iced::widget::{button, container, row, Button, Column, Container, Image, Row, Text};
 use iced::{
@@ -50,7 +51,20 @@ enum Icon {
     Management,
     X,
 }
+pub struct MyStylesheet;
 
+impl StyleSheet for MyStylesheet {
+    type Style = iced::Theme;
+    fn appearance(&self, style: &Self::Style) -> Appearance {
+        Appearance {
+            text_color: Some(Color::WHITE),
+            background: Some(Background::Color(Color::WHITE)),
+            border_radius: 0.2,
+            border_width: 0.2,
+            border_color: Color::BLACK,
+        }
+    }
+}
 /// Implementation of the from Icon to char conversion.
 impl From<Icon> for char {
     fn from(icon: Icon) -> Self {

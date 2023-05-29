@@ -1,22 +1,21 @@
-use crate::detail::{DetailPlant, Sensortypes};
+use crate::detail::Sensortypes;
 use crate::graphs::{PlantChart, PlantCharts};
-use crate::requests::{get_all_plant_ids, get_graphs, get_plant_details, GraphData, PlantMetadata};
-use crate::{Icon, Message, Tab};
+use crate::requests::{create_plant, get_all_plant_ids, get_graphs, GraphData, PlantMetadata};
+use crate::{Icon, Message, MyStylesheet, Tab};
 use iced::alignment::{Horizontal, Vertical};
-use iced::theme::Button::Primary;
-use iced::widget::vertical_slider::draw;
-use iced::widget::{button, container, row, Button, Column, Container, Row, Text, TextInput};
-use iced::Theme::Dark;
-use iced::{Application, Command, Element, Length, Renderer, Sandbox, Settings};
-use iced_aw::TabLabel;
+use iced::widget::{Button, Column, Container, Row, Text, TextInput};
+use iced::{theme, Element, Length, Renderer};
+use iced_aw::{Card, Modal, TabLabel};
+use iced_core::Alignment::Center;
 use itertools::Itertools;
-use plotters::coord::types::RangedCoordf32;
-use plotters::prelude::*;
-use plotters_iced::{Chart, ChartBuilder, ChartWidget, DrawingBackend};
+use plotters_iced::ChartWidget;
 
 #[derive(Debug, Clone)]
 pub enum HomeMessage {
-    NewPlant,
+    OpenModal,
+    CloseModal,
+    CancelButtonPressed,
+    OkButtonPressed,
     Plant,
     Refresh,
     SwitchGraph(Sensortypes),
@@ -24,8 +23,10 @@ pub enum HomeMessage {
 }
 
 pub(crate) struct HomePage {
-    new_plant_bool: bool,
+    show_modal: bool,
     new_plant: PlantMetadata,
+    additionalCareTips: String,
+    group: String,
     charts: PlantCharts<HomeMessage>,
     active_sensor: Sensortypes,
     ids: Vec<String>,
@@ -47,10 +48,12 @@ impl HomePage {
         }
         let charts = PlantCharts::new(vec_chart, HomeMessage::Plant);
         HomePage {
-            new_plant_bool: false,
+            show_modal: false,
             new_plant: PlantMetadata::default(),
+            additionalCareTips: String::new(),
             charts,
             active_sensor: Sensortypes::Luftfeuchtigkeit,
+            group: String::new(),
             ids,
         }
     }
@@ -80,8 +83,8 @@ impl HomePage {
                     sensortypes,
                 )
             }
-            HomeMessage::NewPlant => {
-                self.new_plant_bool = true;
+            HomeMessage::OpenModal => {
+                self.show_modal = true;
             }
             HomeMessage::FieldUpdated(index, value) => match index {
                 0 => {
@@ -94,11 +97,27 @@ impl HomePage {
                     self.new_plant.location = value;
                 }
                 3 => {
-                    self.new_plant.additionalCareTips =
-                        value.split("/n").map(String::from).collect();
+                    self.additionalCareTips = value;
+                }
+                4 => {
+                    self.new_plant.species = value;
+                }
+                5 => {
+                    self.group = value;
                 }
                 _ => (),
             },
+            HomeMessage::CloseModal => self.show_modal = false,
+            HomeMessage::CancelButtonPressed => self.show_modal = false,
+            HomeMessage::OkButtonPressed => {
+                self.new_plant.additionalCareTips = self
+                    .additionalCareTips
+                    .split(',')
+                    .map(String::from)
+                    .collect();
+                self.show_modal = false;
+                let _ = create_plant(self.new_plant.clone(), self.group.clone().parse().unwrap());
+            }
         }
     }
 }
@@ -107,45 +126,89 @@ impl Tab for HomePage {
     type Message = Message;
 
     fn title(&self) -> String {
-        String::from("Home")
+        String::from("Dashboard")
     }
 
     fn tab_label(&self) -> TabLabel {
         TabLabel::IconText(Icon::Homescreen.into(), self.title())
     }
-
     fn content(&self) -> Element<'_, Self::Message> {
-        if self.new_plant_bool {
-            let caretip_string = "";
-            let column: Column<HomeMessage> = Column::new()
-                .push(
-                    TextInput::new("Pflanzenname", &self.new_plant.name)
-                        .on_input(|input| HomeMessage::FieldUpdated(0, input)),
+        if self.show_modal {
+            let container: Container<HomeMessage> = Container::new(Text::new("Neue Pflanze"))
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .align_x(Horizontal::Center)
+                .align_y(Vertical::Center);
+            let content: Element<'_, HomeMessage> = Modal::new(self.show_modal, container, || {
+                Card::new(
+                    Text::new("Neue Pflanze").horizontal_alignment(Horizontal::Center),
+                    Column::new()
+                        .push(
+                            TextInput::new("Pflanzenname", &self.new_plant.name)
+                                .on_input(|input| HomeMessage::FieldUpdated(0, input)),
+                        )
+                        .spacing(20)
+                        .push(
+                            TextInput::new("Beschreibung der Pflanze", &self.new_plant.description)
+                                .on_input(|input| HomeMessage::FieldUpdated(1, input)),
+                        )
+                        .spacing(20)
+                        .push(
+                            TextInput::new("Position der Pflanze", &self.new_plant.location)
+                                .on_input(|input| HomeMessage::FieldUpdated(2, input)),
+                        )
+                        .spacing(20)
+                        .push(
+                            TextInput::new("Pflegehinweise", &self.additionalCareTips)
+                                .on_input(|input| HomeMessage::FieldUpdated(3, input)),
+                        )
+                        .spacing(20)
+                        .push(
+                            TextInput::new("Pflanzenspecies", &self.new_plant.species)
+                                .on_input(|input| HomeMessage::FieldUpdated(4, input)),
+                        )
+                        .spacing(20)
+                        .push(
+                            TextInput::new("Pflanzengruppe", &self.group)
+                                .on_input(|input| HomeMessage::FieldUpdated(5, input)),
+                        )
+                        .spacing(20),
                 )
-                .spacing(20)
-                .push(
-                    TextInput::new(
-                        "Beschreibung der Pflanzengattung",
-                        &self.new_plant.description,
-                    )
-                    .on_input(|input| HomeMessage::FieldUpdated(1, input)),
+                .foot(
+                    Row::new()
+                        .spacing(10)
+                        .padding(5)
+                        .width(Length::Fill)
+                        .push(
+                            Button::new(
+                                Text::new("Cancel").horizontal_alignment(Horizontal::Center),
+                            )
+                            .width(Length::Fill)
+                            .on_press(HomeMessage::CancelButtonPressed),
+                        )
+                        .push(
+                            Button::new(Text::new("Ok").horizontal_alignment(Horizontal::Center))
+                                .width(Length::Fill)
+                                .on_press(HomeMessage::OkButtonPressed),
+                        ),
                 )
-                .spacing(20)
-                .push(
-                    TextInput::new("Position der Pflanze", &self.new_plant.location)
-                        .on_input(|input| HomeMessage::FieldUpdated(2, input)),
-                )
-                .spacing(20)
-                .push(
-                    TextInput::new("Pflegehinweise", caretip_string)
-                        .on_input(|input| HomeMessage::FieldUpdated(3, input)),
-                )
-                .spacing(20);
-            let content: Element<'_, HomeMessage> = Container::new(column).into();
+                .max_width(300.0)
+                .on_close(HomeMessage::CloseModal)
+                .into()
+            })
+            .backdrop(HomeMessage::CloseModal)
+            .on_esc(HomeMessage::CloseModal)
+            .into();
             content.map(Message::Home)
         } else {
             let chart_widget = ChartWidget::new(self.charts.clone());
-            let row = Row::new().push(chart_widget).push(
+            let container: Container<HomeMessage> = Container::new(chart_widget)
+                .style(theme::Container::Custom(Box::new(MyStylesheet)))
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .center_x()
+                .center_y();
+            let row = Row::new().push(container).push(
                 Column::new()
                     .push(Button::new("Refresh").on_press(HomeMessage::Refresh))
                     .spacing(20)
@@ -165,7 +228,7 @@ impl Tab for HomePage {
                     ),
             );
             let lower_row: Row<HomeMessage, Renderer> =
-                Row::new().push(Button::new("Add Plant").on_press(HomeMessage::NewPlant));
+                Row::new().push(Button::new("Add Plant").on_press(HomeMessage::OpenModal));
             let column = Column::new().push(lower_row).push(row);
             let content: Element<'_, HomeMessage> = Container::new(column)
                 .width(Length::Fill)

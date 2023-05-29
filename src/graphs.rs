@@ -1,12 +1,12 @@
-use crate::detail::{DetailMessage, DetailPage, Sensortypes};
+use crate::detail::{DetailPage, Sensortypes};
 use crate::requests::GraphData;
-use iced::{Application, Element, Length};
-use itertools::{enumerate, Itertools};
+use iced::{Element, Length};
+use itertools::Itertools;
 use plotters::chart::SeriesLabelPosition;
 use plotters::element::PathElement;
-use plotters::prelude::{BitMapBackend, RGBColor, YELLOW};
+use plotters::prelude::RGBColor;
 use plotters::series::LineSeries;
-use plotters::style::{Color, FontTransform, IntoFont, ShapeStyle, BLACK, BLUE, GREEN, RED, WHITE};
+use plotters::style::{Color, IntoFont, BLACK, BLUE, WHITE};
 use plotters_iced::{Chart, ChartBuilder, ChartWidget, DrawingBackend};
 
 #[derive(Debug, Clone)]
@@ -105,7 +105,7 @@ impl<M: 'static + Clone> Chart<M> for PlantCharts<M> {
         chart
             .configure_mesh()
             .bold_line_style(BLACK.mix(0.3))
-            .light_line_style(BLACK.mix(0.1))
+            .light_line_style(BLACK.mix(0.3))
             .axis_style(BLACK.mix(0.5))
             .draw()
             .expect("failed to draw mesh");
