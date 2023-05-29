@@ -22,21 +22,11 @@ struct TempUser {
 }
 
 /// Represents a temporary user used to create a new user.
-#[derive(Deserialize, Debug, Serialize, Clone)]
+#[derive(Deserialize, Debug, Serialize, Clone, Default)]
 pub struct TempCreationUser {
     pub(crate) name: String,
     pub(crate) password: String,
     pub(crate) role: u64,
-}
-/// Implements the `default` trait for `TempCreationUser`.
-impl Default for TempCreationUser {
-    fn default() -> Self {
-        TempCreationUser {
-            name: String::new(),
-            password: String::new(),
-            role: PlantBuddyRole::NotLoggedIn.into(),
-        }
-    }
 }
 
 /// Represents the result of a request.

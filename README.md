@@ -6,7 +6,7 @@ Plantbuddy is a desktop application for managing plants. It allows users to view
 
 ### Prerequisites
 
-- [Rust](https://www.rust-lang.org/tools/install)
+- [Rust](https://rustup.rs/)
 
 ### Installation
 

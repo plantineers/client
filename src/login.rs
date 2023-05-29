@@ -17,7 +17,6 @@ use std::fmt;
 
 use crate::requests::{login, RequestResult, TempCreationUser};
 use crate::{Icon, Message, Tab};
-
 /// Represents a message that can be sent to the `LoginTab` to update its state.
 #[derive(Debug, Clone)]
 pub enum LoginMessage {
@@ -29,12 +28,14 @@ pub enum LoginMessage {
 }
 
 /// Represents the role of a user in the PlantBuddy application.
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Deserialize)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Deserialize, Default)]
 pub enum PlantBuddyRole {
     Admin,
     User,
+    #[default]
     NotLoggedIn,
 }
+
 /// This impl provides a conversion from `PlantBuddyRole` to `u64`.
 impl Into<u64> for PlantBuddyRole {
     fn into(self) -> u64 {
