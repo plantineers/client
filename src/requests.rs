@@ -1,14 +1,95 @@
+use std::sync::Arc;
+
 use crate::login::PlantBuddyRole;
 use crate::management::User;
 use base64::{
     engine::{self, general_purpose},
     Engine as _,
 };
+use iced::futures::future::join_all;
 use itertools::enumerate;
 use log::info;
+use reqwest::{Client, Request};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
-use std::process::id;
+use serde_json::{json, Value, to_string};
+use tokio::sync::Mutex;
+
+/// Our Api client that keeps our client and credentials to avoid reencoding and redoing name resolutions
+/// The client is wrapped in an Arc<Mutex<reqwest::Client>> to allow for concurrent access using tokio to avoid deadlocks
+#[derive(Clone, Debug)]
+pub(crate) struct ApiClient {
+    client: Arc<Mutex<reqwest::Client>>,
+}
+
+impl ApiClient {
+    #[must_use]
+    pub fn new(username: String, password: String) -> Self {
+        // Make a new client with the given username and password as base64 encoded credentials in the headers
+        let client = reqwest::Client::builder()
+            .default_headers({
+                let mut headers = reqwest::header::HeaderMap::new();
+                headers.insert(
+                    reqwest::header::AUTHORIZATION,
+                    reqwest::header::HeaderValue::from_str(&format!(
+                        "Basic {}",
+                        encode_credentials(username, password)
+                    ))
+                    .unwrap(),
+                );
+                headers
+            })
+            .build()
+            .unwrap();
+        Self {
+            client: Arc::new(Mutex::new(client)),
+        }
+    }
+
+    /// Gets all users in the database
+    /// # Returns
+    /// Returns a vector of `User` structs representing all the users.
+    pub async fn get_all_users(self) -> RequestResult<Vec<User>>{
+        let client = self.client.lock().await;
+        let response = client
+            .get(ENDPOINT.to_string() + "users")
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
+        let result = response.error_for_status_ref().map(|_| ());
+        match result {
+            Ok(_) => {
+                let ids: Vec<i64> = response.json().await.map_err(|e| e.to_string())?;
+
+                let mut users = Vec::new();
+                for id in ids {
+                    let response = client
+                        .get(ENDPOINT.to_string() + &format!("user/{}", id))
+                        .send()
+                        .await
+                        .map_err(|e| e.to_string())?;
+
+                    let temp_user: TempUser = response.json().await.map_err(|e| e.to_string())?;
+
+                    let role = PlantBuddyRole::try_from(temp_user.role).unwrap();
+                    let user = User {
+                        id: temp_user.id,
+                        name: temp_user.name,
+                        role,
+                        password: String::new(),
+                    };
+
+                    users.push(user);
+                }
+                info!("Get all users successful");
+                Ok(users)
+            }
+            Err(e) => {
+                info!("Get all users failed");
+                Err(e.to_string())
+            }
+        }
+    }
+}
 
 const ENDPOINT: &str = "https://pb.mfloto.com/v1/";
 
@@ -150,70 +231,6 @@ pub async fn create_group(new_group: PlantGroupMetadata) -> Result<(), reqwest::
 
     Ok(())
 }
-
-/// Gets all users with the given username and password.
-///
-/// # Arguments
-///
-/// * `username` - A string slice that holds the username.
-/// * `password` - A string slice that holds the password.
-///
-/// # Returns
-///
-/// Returns a vector of `User` structs representing all the users.
-pub async fn get_all_users(username: String, password: String) -> RequestResult<Vec<User>> {
-    let client = reqwest::Client::new();
-    let response = client
-        .get(ENDPOINT.to_string() + "users")
-        .header(
-            "Authorization",
-            "Basic ".to_string() + &encode_credentials(username.clone(), password.clone()),
-        )
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let result = response.error_for_status_ref().map(|_| ());
-
-    match result {
-        Ok(_) => {
-            let ids: Vec<i64> = response.json().await.map_err(|e| e.to_string())?;
-
-            let mut users = Vec::new();
-            for id in ids {
-                let response = client
-                    .get(ENDPOINT.to_string() + &format!("user/{}", id))
-                    .header(
-                        "Authorization",
-                        "Basic ".to_string()
-                            + &encode_credentials(username.clone(), password.clone()),
-                    )
-                    .send()
-                    .await
-                    .map_err(|e| e.to_string())?;
-
-                let temp_user: TempUser = response.json().await.map_err(|e| e.to_string())?;
-
-                let role = PlantBuddyRole::try_from(temp_user.role).unwrap();
-                let user = User {
-                    id: temp_user.id,
-                    name: temp_user.name,
-                    role,
-                    password: String::new(),
-                };
-
-                users.push(user);
-            }
-            info!("Get all users successful");
-            Ok(users)
-        }
-        Err(e) => {
-            info!("Get all users failed");
-            Err(e.to_string())
-        }
-    }
-}
-
 #[tokio::main(flavor = "current_thread")]
 pub async fn get_all_plant_ids() -> Result<Vec<String>, reqwest::Error> {
     let client = reqwest::Client::new();
@@ -322,38 +339,55 @@ pub struct GraphData {
     pub values: Vec<i32>,
     pub timestamps: Vec<String>,
 }
-
 #[tokio::main(flavor = "current_thread")]
 pub async fn get_graphs(
     plant_ids: Vec<String>,
+    // FIXME: This should use the enum, implementing the display trait which automatically converts to the string
     sensor_type: String,
-) -> Result<Vec<GraphData>, Box<dyn std::error::Error>> {
+) -> RequestResult<Vec<GraphData>> {
     let client = reqwest::Client::new();
-    let mut graphs = vec![];
+    let mut tasks = vec![];
 
     for plant_id in plant_ids {
-        let response = client
-            .get(&format!(
-                "{}sensor-data?sensor={}&plant={}&from=2019-01-01T00:00:00.000Z&to=2023-05-29T23:00:00.000Z",
-                ENDPOINT, sensor_type, plant_id
-            ))
-            .header("Authorization", "Basic YWRtaW46MTIzNA==")
-            .send()
-            .await?;
+        let type_clone = sensor_type.clone();
+        let client = client.clone();
+        let task = tokio::spawn(async move {
+            let response = client
+                .get(&format!(
+                    "{}sensor-data?sensor={}&plant={}&from=2019-01-01T00:00:00.000Z&to=2023-05-29T23:00:00.000Z",
+                    ENDPOINT, type_clone, plant_id
+                ))
+                // FIXME: We should stop leaking the authentication data here, but for the testing DB it's fine for now
+                .header("Authorization", "Basic YWRtaW46MTIzNA==")
+                .send()
+                .await.map_err(|e| e.to_string())?;
 
-        let text = response.text().await?;
-        if text != "{\"data\":null}" {
-            let value: Value = serde_json::from_str(&text).unwrap();
-            let data = value.get("data").unwrap();
-            let mut values = vec![];
-            let mut timestamps = vec![];
-            data.as_array().unwrap().iter().for_each(|x| {
-                let value = x.get("value").unwrap();
-                let timestamp = x.get("timestamp").unwrap();
-                values.push(value.as_f64().unwrap() as i32);
-                timestamps.push(timestamp.as_str().unwrap().to_string());
-            });
-            graphs.push(GraphData { values, timestamps })
+            let text = response.text().await.map_err(|e| e.to_string())?;
+            // FIXME: If we can get no data back the return type of our function should be an Option
+            if text != "{\"data\":null}" {
+                let value: Value = serde_json::from_str(&text).unwrap();
+                let data = value.get("data").unwrap();
+                let mut values = vec![];
+                let mut timestamps = vec![];
+                data.as_array().unwrap().iter().for_each(|x| {
+                    let value = x.get("value").unwrap();
+                    let timestamp = x.get("timestamp").unwrap();
+                    values.push(value.as_f64().unwrap() as i32);
+                    timestamps.push(timestamp.as_str().unwrap().to_string());
+                });
+                Ok(GraphData { values, timestamps })
+            } else {
+                Err("No data found".to_string())
+            }
+        });
+        tasks.push(task);
+    }
+    let results = join_all(tasks).await;
+    let mut graphs = vec![];
+    for result in results {
+        match result {
+            Ok(Ok(graph_data)) => graphs.push(graph_data),
+            _ => {},
         }
     }
 
@@ -377,7 +411,6 @@ pub async fn create_user(
     user: TempCreationUser,
 ) -> RequestResult<()> {
     let client = reqwest::Client::new();
-    let json = serde_json::to_string(&user).unwrap();
     let response = client
         .post(ENDPOINT.to_string() + "user")
         .header(

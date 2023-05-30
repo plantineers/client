@@ -12,7 +12,7 @@ use iced::{application, color};
 use iced_aw::tab_bar::TabLabel;
 use log::{info, log};
 use serde::{Deserialize, Serialize};
-use std::{fmt, env};
+use std::{env, fmt};
 
 use crate::requests::{login, RequestResult, TempCreationUser};
 use crate::{Icon, Message, Tab};
@@ -92,13 +92,11 @@ impl LoginTab {
     /// Returns a `Command` that can be used to perform asynchronous tasks.
     pub fn update(&mut self, message: LoginMessage) -> Command<LoginMessage> {
         #[cfg(debug_assertions)]
-        if env::var("USERNAME").is_ok() && env::var("PASSWORD").is_ok() {
-            if self.username.is_empty() {
-                self.username = env::var("USERNAME").unwrap();
-            }
-            if self.password.is_empty() {
-                self.password = env::var("PASSWORD").unwrap();
-            }
+        if env::var("USERNAME").is_ok() && env::var("PASSWORD").is_ok() && self.username.trim().is_empty(){
+            info!("Using username and password from environment variables");
+            self.username = env::var("USERNAME").unwrap();
+            self.password = env::var("PASSWORD").unwrap();
+            return check_login(&self.username, &self.password);
         }
         match message {
             LoginMessage::UsernameChanged(value) => {

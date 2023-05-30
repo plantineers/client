@@ -6,7 +6,7 @@ use iced::Alignment::{Center, End};
 
 use crate::login::PlantBuddyRole;
 use crate::requests::{
-    create_user, delete_user, get_all_users, update_user, RequestResult, TempCreationUser,
+    create_user, delete_user, update_user, RequestResult, TempCreationUser, ApiClient,
 };
 use iced::widget::slider::update;
 use iced::{
@@ -14,7 +14,7 @@ use iced::{
     widget::{radio, Button, Column, Container, Row, Text, TextInput},
     Alignment, Color, Element, Length,
 };
-use iced::{Application, Command, Sandbox, Settings};
+use iced::{Application, Command, Sandbox, };
 use iced_aw::TabLabel;
 use plotters::coord::types::RangedCoordf32;
 use plotters::prelude::*;
@@ -63,10 +63,13 @@ pub struct User {
 /// The `error_message` field is used to show any error messages to the user.
 /// The `editing_user` field is used to store the user being edited (if any).
 /// The `notify_message` field is used to show any notifications to the user.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone)]
 pub(crate) struct ManagementTab {
+    #[deprecated(note = "This field is deprecated and will be removed in the future")]
     username_input: String,
+    #[deprecated(note = "This field is deprecated and will be removed in the future")]
     password_input: String,
+    client: Option<ApiClient>,
     role_input: PlantBuddyRole,
     users: Vec<User>,
     error_message: String,
@@ -79,8 +82,10 @@ impl ManagementTab {
     /// Creates a new instance of ManagementTab with default values.
     pub fn new() -> ManagementTab {
         ManagementTab {
+            // WHY WOULD WE DO THIS? When we create a ManagementTab we should have that data from the login 
             username_input: String::new(),
             password_input: String::new(),
+            client: None,
             role_input: PlantBuddyRole::User,
             users: Vec::new(),
             error_message: String::new(),
@@ -146,7 +151,9 @@ impl ManagementTab {
             }
             ManagementMessage::GetUsersPressed => {
                 self.error_message = String::new();
-                return get_all_users_pressed(username.clone(), password.clone());
+                return Command::none();
+                // TODO
+                return get_all_users_pressed(self.client.clone().unwrap());
             }
             ManagementMessage::UserCreated(result) => match result {
                 Ok(_) => {
@@ -240,7 +247,7 @@ impl Tab for ManagementTab {
             .push(
                 Container::new(
                     Text::new(self.notify_message.clone())
-                        .style((Color::from_rgb(0.0, 1.0, 0.0)))
+                        .style(Color::from_rgb(0.0, 1.0, 0.0))
                         .size(30),
                 )
                 .width(Length::from(Length::Fill))
@@ -468,16 +475,9 @@ fn delete_user_pressed(id: u32, username: String, password: String) -> Command<M
     )
 }
 
-/// Gets all users based on the provided details and returns a command to get all the users.
-/// The command will return a message to the update function.
-/// # Arguments
-/// * `username` - The username of the user that is getting all the users.
-/// * `password` - The password of the user that is getting all the users.
-/// # Returns
-/// A command to get all the users.
-fn get_all_users_pressed(username: String, password: String) -> Command<ManagementMessage> {
+fn get_all_users_pressed(client: ApiClient) -> Command<ManagementMessage> {
     Command::perform(
-        get_all_users(username, password),
+     client.get_all_users() ,
         ManagementMessage::UsersReceived,
     )
 }

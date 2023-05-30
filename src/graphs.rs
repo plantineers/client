@@ -78,7 +78,7 @@ impl<M: 'static> PlantCharts<M> {
             );
             charts.push(chart);
         }
-        let mut plant_charts = PlantCharts::new(charts, message);
+        let plant_charts = PlantCharts::new(charts, message);
         plant_charts
     }
     pub fn update_charts(
