@@ -112,14 +112,14 @@ impl ManagementTab {
                 return if self.editing_user.is_none() {
                     // Creation mode
                     if self.username_input.is_empty() || self.password_input.is_empty() {
-                        self.error_message = String::from("Username or password is empty");
+                        self.error_message = String::from("Nutzername oder Passwort ist leer");
                         return Command::none();
                     }
                     create_user_pressed(self.clone(), username.clone(), password.clone())
                 } else {
                     // Editing mode
                     if self.username_input.is_empty() || self.password_input.is_empty() {
-                        self.error_message = String::from("Username or password is empty");
+                        self.error_message = String::from("Nutzername oder Passwort ist leer");
                         return Command::none();
                     }
                     edit_user_pressed(self.clone(), username.clone(), password.clone())
@@ -152,7 +152,7 @@ impl ManagementTab {
                 Ok(_) => {
                     self.username_input.clear();
                     self.password_input.clear();
-                    self.notify_message = String::from("User created");
+                    self.notify_message = String::from("Nutzer erstellt");
                     return self.update(ManagementMessage::GetUsersPressed);
                 }
                 Err(e) => {
@@ -161,7 +161,7 @@ impl ManagementTab {
             },
             ManagementMessage::UserDeleted(result) => match result {
                 Ok(_) => {
-                    self.notify_message = String::from("User deleted");
+                    self.notify_message = String::from("Nutzer gelöscht");
                     return self.update(ManagementMessage::GetUsersPressed);
                 }
                 Err(e) => {
@@ -178,7 +178,7 @@ impl ManagementTab {
             },
             ManagementMessage::UserEdited(result) => match result {
                 Ok(_) => {
-                    self.notify_message = String::from("User edited");
+                    self.notify_message = String::from("Nutzer bearbeitet");
                     self.username_input.clear();
                     self.password_input.clear();
                     self.editing_user = None;
@@ -199,7 +199,7 @@ impl Tab for ManagementTab {
 
     /// Returns the title of the tab.
     fn title(&self) -> String {
-        String::from("Management")
+        String::from("Verwaltung")
     }
 
     /// Returns the label of the tab.
@@ -259,27 +259,27 @@ impl Tab for ManagementTab {
                         .width(Length::FillPortion(1)),
                 )
                 .push(
-                    Container::new(Text::new("Username").size(25))
+                    Container::new(Text::new("Nutzername").size(25))
                         .center_x()
                         .center_y()
                         .padding(10)
                         .width(Length::FillPortion(1)),
                 )
                 .push(
-                    Container::new(Text::new("Role").size(25))
+                    Container::new(Text::new("Rolle").size(25))
                         .center_x()
                         .center_y()
                         .padding(10)
                         .width(Length::FillPortion(1)),
                 )
                 .push(
-                    Container::new(Text::new("Edit").size(25))
+                    Container::new(Text::new("Bearbeiten").size(25))
                         .center_x()
                         .center_y()
                         .width(Length::FillPortion(1)),
                 )
                 .push(
-                    Container::new(Text::new("Delete").size(25))
+                    Container::new(Text::new("Löschen").size(25))
                         .center_x()
                         .center_y()
                         .width(Length::FillPortion(1)),
@@ -306,7 +306,7 @@ impl Tab for ManagementTab {
                 .push(
                     Container::new(
                         Text::new(match &user.role {
-                            PlantBuddyRole::User => "User",
+                            PlantBuddyRole::User => "Nutzer",
                             PlantBuddyRole::Admin => "Admin",
                             _ => "This should not happen",
                         })
@@ -319,7 +319,7 @@ impl Tab for ManagementTab {
                 )
                 .push(
                     Container::new(
-                        Button::new(Text::new("Edit").size(25))
+                        Button::new(Text::new("Bearbeiten").size(25))
                             .on_press(ManagementMessage::EditUserButtonPressed(user.clone()))
                             .width(Length::FillPortion(1)),
                     )
@@ -328,7 +328,7 @@ impl Tab for ManagementTab {
                 )
                 .push(
                     Container::new(
-                        Button::new(Text::new("Delete").size(25))
+                        Button::new(Text::new("Löschen").size(25))
                             .on_press(ManagementMessage::DeleteUserPressed(user.clone().id)),
                     )
                     .center_x()
@@ -351,7 +351,7 @@ impl Tab for ManagementTab {
                 .spacing(10)
                 .push(
                     radio(
-                        "User",
+                        "Nutzer",
                         PlantBuddyRole::User,
                         Some(self.role_input),
                         ManagementMessage::RoleChanged,
@@ -376,7 +376,7 @@ impl Tab for ManagementTab {
             .spacing(20)
             .push(
                 Container::new(
-                    TextInput::new("Username", &self.username_input)
+                    TextInput::new("Nutzername", &self.username_input)
                         .size(40)
                         .on_input(ManagementMessage::UsernameChanged),
                 )
@@ -386,7 +386,7 @@ impl Tab for ManagementTab {
             )
             .push(
                 Container::new(
-                    TextInput::new("Password", &self.password_input)
+                    TextInput::new("Passwort", &self.password_input)
                         .size(40)
                         .on_input(ManagementMessage::PasswordChanged),
                 )
@@ -397,8 +397,8 @@ impl Tab for ManagementTab {
             .push(radio_column)
             .push(
                 Button::new(match self.editing_user {
-                    Some(_) => Text::new("Edit User").size(30),
-                    None => Text::new("Create User").size(30),
+                    Some(_) => Text::new("Nutzer bearbeiten").size(30),
+                    None => Text::new("Nutzer erstellen").size(30),
                 })
                 .on_press(ManagementMessage::CreateNewUserPressed),
             );
