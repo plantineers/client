@@ -12,6 +12,7 @@ use iced_core::Alignment::Center;
 use log::info;
 use plotters::prelude::*;
 use plotters_iced::ChartWidget;
+use rand::Rng;
 use std::fmt::{Display, Formatter};
 use std::vec;
 
@@ -85,6 +86,17 @@ impl Sensortypes {
             Sensortypes::Feuchtigkeit => RGBColor(0, 0, 255),
             Sensortypes::Luftfeuchtigkeit => RGBColor(0, 255, 0),
             Sensortypes::Temperatur => RGBColor(255, 0, 0),
+        }
+    }
+    pub fn get_color_with_random_offset(&self) -> RGBColor {
+        let mut rng = rand::thread_rng();
+        let offset = rng.gen_range(0..=255);
+        let offset2 = rng.gen_range(0..=255);
+        let offset3 = rng.gen_range(0..=50);
+        match self {
+            Sensortypes::Feuchtigkeit => RGBColor(offset, offset2, 255 - offset3),
+            Sensortypes::Luftfeuchtigkeit => RGBColor(offset, 255 - offset3, offset2),
+            Sensortypes::Temperatur => RGBColor(255 - offset3, offset, offset2),
         }
     }
     pub fn iter() -> impl Iterator<Item = Sensortypes> {

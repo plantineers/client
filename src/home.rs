@@ -50,7 +50,7 @@ impl HomePage {
                 Sensortypes::Luftfeuchtigkeit.get_name(),
                 (0..data.timestamps.len() as i32).collect_vec(),
                 data.values,
-                Sensortypes::Luftfeuchtigkeit.get_color(),
+                Sensortypes::Luftfeuchtigkeit.get_color_with_random_offset(),
             ));
         }
         let charts = PlantCharts::new(vec_chart, HomeMessage::Plant);

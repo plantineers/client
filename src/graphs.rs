@@ -76,7 +76,7 @@ impl<M: 'static> PlantCharts<M> {
                 format!("{}-{}", name, sensor),
                 (0..data.timestamps.len() as i32).collect_vec(),
                 data.values.clone(),
-                sensor.get_color(),
+                sensor.get_color_with_random_offset(),
             );
             charts.push(chart);
         }
@@ -124,7 +124,7 @@ impl<M: 'static + Clone> Chart<M> for PlantCharts<M> {
                             .map(|(x, y)| (*x, *y)),
                         &color,
                     )
-                    .point_size(1),
+                    .point_size(2),
                 )
                 .unwrap()
                 .label(plantchart.name.as_str())

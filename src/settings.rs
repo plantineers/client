@@ -85,7 +85,7 @@ impl Tab for SettingsTab {
     fn content(&self) -> Element<'_, Self::Message> {
         let content: Element<'_, SettingsMessage> = Container::new(
             Column::new()
-                .push(Text::new("TabBar position:").size(20))
+                .push(Text::new("TabBar position:").size(35))
                 .push(TabBarPosition::ALL.iter().cloned().fold(
                     Column::new().padding(10).spacing(10),
                     |column, position| {
@@ -96,11 +96,11 @@ impl Tab for SettingsTab {
                                 self.settings().tab_bar_position,
                                 SettingsMessage::PositionSelected,
                             )
-                                .size(16),
+                            .size(35),
                         )
                     },
                 ))
-                .push(Text::new("TabBar color:").size(20))
+                .push(Text::new("TabBar color:").size(35))
                 .push(
                     (0..5).fold(Column::new().padding(10).spacing(10), |column, id| {
                         column.push(
@@ -110,12 +110,12 @@ impl Tab for SettingsTab {
                                 self.settings().tab_bar_theme,
                                 SettingsMessage::ThemeSelected,
                             )
-                                .size(16),
+                            .size(35),
                         )
                     }),
                 ),
         )
-            .into();
+        .into();
 
         content.map(Message::Settings)
     }
