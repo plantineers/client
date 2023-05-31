@@ -307,7 +307,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_user() {
-        let username = "testuser2".to_string();
+        let username = "testuser".to_string();
         let password = "testpassword".to_string();
         let random: u32 = random();
         let user = TempCreationUser {

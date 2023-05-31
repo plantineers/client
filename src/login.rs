@@ -113,7 +113,7 @@ impl LoginTab {
                 if self.username.is_empty() || self.password.is_empty() {
                     info!("Username or password is empty");
                     self.login_failed = true;
-                    self.last_error_massage = "Username or password is empty".to_string();
+                    self.last_error_massage = "Nutzername oder Passwort ist leer".to_string();
                     return Command::none();
                 }
                 return check_login(&self.username, &self.password);
@@ -128,7 +128,7 @@ impl LoginTab {
                     info!("Login failed");
                     info!("Error: {:?}", error);
                     self.login_failed = true;
-                    self.last_error_massage = "Server error".to_string();
+                    self.last_error_massage = "Server-Fehler".to_string();
                 }
             },
         }
@@ -182,13 +182,13 @@ impl Tab for LoginTab {
                 .spacing(16)
                 .push(image)
                 .push(
-                    TextInput::new("Username", &self.username)
+                    TextInput::new("Nutzername", &self.username)
                         .on_input(LoginMessage::UsernameChanged)
                         .padding(10)
                         .size(32),
                 )
                 .push(
-                    TextInput::new("Password", &self.password)
+                    TextInput::new("Passwort", &self.password)
                         .on_input(LoginMessage::PasswordChanged)
                         .on_submit(LoginMessage::LoginPressed)
                         .padding(10)
@@ -302,7 +302,7 @@ mod tests {
         assert_eq!(login_tab.login_failed, true);
         assert_eq!(
             login_tab.last_error_massage,
-            "Username or password is empty"
+            "Nutzername oder Passwort ist leer"
         );
     }
 
@@ -315,7 +315,7 @@ mod tests {
         assert_eq!(login_tab.login_failed, true);
         assert_eq!(
             login_tab.last_error_massage,
-            "Username or password is empty"
+            "Nutzername oder Passwort ist leer"
         );
     }
 
@@ -327,7 +327,7 @@ mod tests {
         let message = LoginMessage::Login(RequestResult::Err("test".to_string()));
         let command = login_tab.update(message);
         assert_eq!(login_tab.login_failed, true);
-        assert_eq!(login_tab.last_error_massage, "Server error");
+        assert_eq!(login_tab.last_error_massage, "Server-Fehler");
     }
 
     #[test]
