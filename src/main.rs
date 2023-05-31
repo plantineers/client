@@ -197,6 +197,7 @@ impl Application for Plantbuddy {
 
                         self.home_page
                             .update(HomeMessage::SwitchGraph(Sensortypes::Feuchtigkeit));
+                        self.detail_page.update(DetailMessage::Load);
                         // Get all users from the server and update the management tab
                         return self
                             .management_tab

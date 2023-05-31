@@ -153,8 +153,11 @@ impl HomePage {
                         .map(String::from)
                         .collect();
                     self.show_modal = false;
-                    let _ =
-                        create_plant(self.new_plant.clone(), self.group.clone().parse().unwrap());
+                    let _ = create_plant(
+                        self.new_plant.clone(),
+                        self.group.clone().parse().unwrap(),
+                        None,
+                    );
                 } else {
                     self.new_group.careTips = self.careTips.split(',').map(String::from).collect();
                     for (i, sensor) in enumerate(self.new_group.sensorRanges.iter_mut()) {

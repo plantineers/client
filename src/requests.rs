@@ -164,16 +164,29 @@ pub async fn login(username: String, password: String) -> RequestResult<TempCrea
 pub async fn create_plant(
     new_plant: PlantMetadata,
     plant_group_id: i32,
+    plant_id: Option<String>,
 ) -> Result<(), reqwest::Error> {
     let mut json = serde_json::to_value(new_plant).unwrap();
     json["plantGroupId"] = json!(plant_group_id);
-    let client = reqwest::Client::new();
-    let response = client
-        .post(&format!("{}plant", ENDPOINT))
-        .header("Authorization", "Basic YWRtaW46MTIzNA==")
-        .json(&json)
-        .send()
-        .await?;
+    info!("{:?}", json);
+    let client = Client::new();
+    let response = if plant_id.is_none() {
+        let response = client
+            .post(&format!("{}plant", ENDPOINT))
+            .header("Authorization", "Basic YWRtaW46MTIzNA==")
+            .json(&json)
+            .send()
+            .await?;
+        response
+    } else {
+        let response = client
+            .put(&format!("{}plant/{}", ENDPOINT, plant_group_id))
+            .header("Authorization", "Basic YWRtaW46MTIzNA==")
+            .json(&json)
+            .send()
+            .await?;
+        response
+    };
     let result = response.error_for_status_ref().map(|_| ());
 
     match result {
@@ -254,6 +267,8 @@ pub struct PlantMetadata {
 
 #[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct PlantGroupMetadata {
+    #[serde(skip_serializing)]
+    pub id: i32,
     pub name: String,
     pub description: String,
     pub careTips: Vec<String>,
@@ -262,9 +277,11 @@ pub struct PlantGroupMetadata {
 impl Default for PlantGroupMetadata {
     fn default() -> Self {
         PlantGroupMetadata {
+            id: 0,
             name: String::new(),
             description: String::new(),
             careTips: vec![],
+            //TODO: Curse you hardcoded values
             sensorRanges: vec![
                 SensorRange {
                     sensorType: SensorType {
@@ -332,7 +349,6 @@ pub struct GraphData {
 #[tokio::main(flavor = "current_thread")]
 pub async fn get_graphs(
     plant_ids: Vec<String>,
-    // FIXME: This should use the enum, implementing the display trait which automatically converts to the string
     sensor_type: String,
 ) -> RequestResult<Vec<GraphData>> {
     let client = reqwest::Client::new();

@@ -1,7 +1,7 @@
 use crate::graphs::{PlantChart, PlantCharts};
 use crate::requests::{
-    get_all_plant_ids_names, get_graphs, get_plant_details, GraphData, PlantGroupMetadata,
-    PlantMetadata,
+    create_plant, get_all_plant_ids_names, get_graphs, get_plant_details, GraphData,
+    PlantGroupMetadata, PlantMetadata,
 };
 use crate::{Icon, Message, MyStylesheet, Tab, TEXT_SIZE};
 use iced::alignment::{Horizontal, Vertical};
@@ -10,7 +10,6 @@ use iced::{theme, Element, Length};
 use iced_aw::tab_bar::TabLabel;
 use iced_aw::{Card, Modal};
 use iced_core::Alignment::Center;
-use log::info;
 use plotters::prelude::*;
 use plotters_iced::ChartWidget;
 use rand::Rng;
@@ -20,7 +19,6 @@ use std::vec;
 #[derive(Debug, Clone)]
 pub struct DetailPlant {
     pub id: String,
-    pub id_names: Vec<(String, String)>,
     pub data: PlantMetadata,
     pub charts: PlantCharts<DetailMessage>,
 }
@@ -30,14 +28,13 @@ impl DetailPlant {
         let plant_data: (PlantMetadata, PlantGroupMetadata) =
             get_plant_details(id.clone()).unwrap();
         let charts = PlantCharts::create_charts(
-            DetailMessage::Load,
+            DetailMessage::Loaded,
             graph_data,
             Sensortypes::Feuchtigkeit,
             plant_data.0.name.clone(),
         );
         DetailPlant {
             id,
-            id_names: vec![],
             data: plant_data.0,
             charts,
         }
@@ -48,6 +45,7 @@ pub enum DetailMessage {
     OkButtonPressed,
     OpenModal,
     CloseModal,
+    Pending,
     Load,
     PlantData(String),
     Loaded,
@@ -58,6 +56,8 @@ pub enum DetailMessage {
 
 pub(crate) struct DetailPage {
     pub modal: bool,
+    pub additionalCareTips: String,
+    pub id_names: Vec<(String, String)>,
     pub plant: DetailPlant,
     pub message: DetailMessage,
 }
@@ -116,26 +116,61 @@ impl DetailPage {
     pub fn new() -> DetailPage {
         let plant = DetailPlant {
             id: String::new(),
-            id_names: get_all_plant_ids_names().unwrap(),
             data: PlantMetadata::default(),
             charts: PlantCharts::new(Vec::new(), DetailMessage::Loaded),
         };
         DetailPage {
+            id_names: vec![],
             modal: false,
+            additionalCareTips: String::new(),
             plant,
-            message: DetailMessage::Load,
+            message: DetailMessage::Pending,
         }
     }
+    pub fn min_max_graphs(&self, sensor_types: Sensortypes) -> Vec<PlantChart> {
+        let mut charts = vec![];
+        self.plant
+            .data
+            .plantGroup
+            .sensorRanges
+            .iter()
+            .filter(|sensor| sensor.sensorType.name == sensor_types.get_name())
+            .for_each(|sensor| {
+                charts.push(PlantChart::new(
+                    format!("{:?}_Max_Grenze", self.plant.data.name.clone()),
+                    self.plant.charts.charts[0].x.clone(),
+                    vec![sensor.max; self.plant.charts.charts[0].x.len()],
+                    BLACK,
+                ));
+                charts.push(PlantChart::new(
+                    format!("{:?}_Min_Grenze", self.plant.data.name.clone()),
+                    self.plant.charts.charts[0].x.clone(),
+                    vec![sensor.min; self.plant.charts.charts[0].x.len()],
+                    BLACK,
+                ))
+            });
+        charts
+    }
     pub fn update(&mut self, message: DetailMessage) {
-        info!("Updating detail page");
         match message {
+            DetailMessage::Pending => {
+                self.message = DetailMessage::Pending;
+            }
             DetailMessage::Load => {
-                DetailPage::new();
-                self.message = DetailMessage::Load;
+                self.id_names = get_all_plant_ids_names().unwrap();
+                self.message = DetailMessage::Pending;
             }
             DetailMessage::PlantData(id) => {
-                let graph_data = get_graphs(vec![id.clone()], "soil-moisture".to_string());
+                let graph_data = get_graphs(vec![id.clone()], Sensortypes::Feuchtigkeit.get_name());
                 self.plant = DetailPlant::new(id, graph_data.unwrap());
+                self.plant.data.additionalCareTips.iter().for_each(|x| {
+                    self.additionalCareTips.push_str(x);
+                    self.additionalCareTips.push(',');
+                });
+                self.plant
+                    .charts
+                    .charts
+                    .append(&mut self.min_max_graphs(Sensortypes::Feuchtigkeit));
                 self.message = DetailMessage::Loaded;
             }
             DetailMessage::SwitchGraph(sensor_types) => {
@@ -149,25 +184,9 @@ impl DetailPage {
                     self.plant.data.name.clone(),
                 );
                 self.plant
-                    .data
-                    .plantGroup
-                    .sensorRanges
-                    .iter()
-                    .filter(|sensor| sensor.sensorType.name == sensor_types.get_name())
-                    .for_each(|sensor| {
-                        self.plant.charts.charts.push(PlantChart::new(
-                            format!("{:?}_Max_Grenze", self.plant.data.name.clone()),
-                            self.plant.charts.charts[0].x.clone(),
-                            vec![sensor.max; self.plant.charts.charts[0].x.len()],
-                            BLACK,
-                        ));
-                        self.plant.charts.charts.push(PlantChart::new(
-                            format!("{:?}_Min_Grenze", self.plant.data.name.clone()),
-                            self.plant.charts.charts[0].x.clone(),
-                            vec![sensor.min; self.plant.charts.charts[0].x.len()],
-                            BLACK,
-                        ));
-                    });
+                    .charts
+                    .charts
+                    .append(&mut self.min_max_graphs(sensor_types));
                 self.message = DetailMessage::Loaded;
             }
             DetailMessage::Loaded => {}
@@ -181,6 +200,16 @@ impl DetailPage {
                 self.modal = false;
             }
             DetailMessage::OkButtonPressed => {
+                self.plant.data.additionalCareTips = self
+                    .additionalCareTips
+                    .split(',')
+                    .map(|x| x.to_string())
+                    .collect();
+                let _ = create_plant(
+                    self.plant.data.clone(),
+                    self.plant.data.plantGroup.id,
+                    Some(self.plant.id.clone()),
+                );
                 self.modal = false;
             }
             DetailMessage::FieldUpdated(index, value) => match index {
@@ -188,7 +217,8 @@ impl DetailPage {
                 1 => self.plant.data.description = value,
                 2 => self.plant.data.location = value,
                 3 => self.plant.data.species = value,
-                4 => self.plant.data.plantGroup.name = value,
+                4 => self.plant.data.plantGroup.id = value.parse().unwrap(),
+                5 => self.additionalCareTips = value,
                 _ => {}
             },
         }
@@ -245,15 +275,24 @@ impl Tab for DetailPage {
                         .spacing(20)
                         .spacing(20)
                         .push(
-                            TextInput::new("Pflanzenspecies", &self.plant.data.species)
+                            TextInput::new("Pflanzenspezies", &self.plant.data.species)
                                 .size(TEXT_SIZE)
                                 .on_input(|input| DetailMessage::FieldUpdated(3, input)),
                         )
                         .spacing(20)
                         .push(
-                            TextInput::new("Pflanzengruppe", &self.plant.data.plantGroup.name)
+                            TextInput::new(
+                                "Pflanzengruppe",
+                                &self.plant.data.plantGroup.id.to_string(),
+                            )
+                            .size(TEXT_SIZE)
+                            .on_input(|input| DetailMessage::FieldUpdated(4, input)),
+                        )
+                        .spacing(20)
+                        .push(
+                            TextInput::new("Pflegehinweise", &self.additionalCareTips)
                                 .size(TEXT_SIZE)
-                                .on_input(|input| DetailMessage::FieldUpdated(4, input)),
+                                .on_input(|input| DetailMessage::FieldUpdated(5, input)),
                         )
                         .spacing(20),
                 )
@@ -290,7 +329,7 @@ impl Tab for DetailPage {
             .into();
             content.map(Message::Detail)
         } else {
-            let row = if self.message != DetailMessage::Load {
+            let row = if self.message != DetailMessage::Pending {
                 let plant = &self.plant;
                 let chart = ChartWidget::new(plant.charts.clone());
                 let container: Container<DetailMessage> = Container::new(chart)
@@ -380,7 +419,7 @@ impl Tab for DetailPage {
                         .push(Text::new("Name").size(TEXT_SIZE))
                         .spacing(20),
                 );
-                for id in self.plant.id_names.clone() {
+                for id in self.id_names.clone() {
                     let id_name_row = Row::new()
                         .push(Text::new(id.0.clone()).size(TEXT_SIZE))
                         .push(Text::new(id.1.clone()).size(TEXT_SIZE))
