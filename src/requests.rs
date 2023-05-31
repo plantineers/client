@@ -11,7 +11,7 @@ use itertools::enumerate;
 use log::info;
 use reqwest::{Client, Request};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value, to_string};
+use serde_json::{json, to_string, Value};
 use tokio::sync::Mutex;
 
 /// Our Api client that keeps our client and credentials to avoid reencoding and redoing name resolutions
@@ -48,7 +48,7 @@ impl ApiClient {
     /// Gets all users in the database
     /// # Returns
     /// Returns a vector of `User` structs representing all the users.
-    pub async fn get_all_users(self) -> RequestResult<Vec<User>>{
+    pub async fn get_all_users(self) -> RequestResult<Vec<User>> {
         let client = self.client.lock().await;
         let response = client
             .get(ENDPOINT.to_string() + "users")
@@ -170,7 +170,6 @@ pub async fn login(username: String, password: String) -> RequestResult<TempCrea
         }
     }
 }
-#[tokio::main(flavor = "current_thread")]
 pub async fn create_plant(
     new_plant: PlantMetadata,
     plant_group_id: i32,
@@ -201,7 +200,6 @@ pub async fn create_plant(
 
     Ok(())
 }
-#[tokio::main(flavor = "current_thread")]
 pub async fn create_group(new_group: PlantGroupMetadata) -> Result<(), reqwest::Error> {
     let mut json = serde_json::to_value(new_group.clone()).unwrap();
     for (i, sensor) in enumerate(new_group.sensorRanges.iter()) {
@@ -387,7 +385,7 @@ pub async fn get_graphs(
     for result in results {
         match result {
             Ok(Ok(graph_data)) => graphs.push(graph_data),
-            _ => {},
+            _ => {}
         }
     }
 

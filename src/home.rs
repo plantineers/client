@@ -7,7 +7,7 @@ use crate::requests::{
 use crate::{Icon, Message, MyStylesheet, Tab, TEXT_SIZE};
 use iced::alignment::{Horizontal, Vertical};
 use iced::widget::{Button, Column, Container, Row, Text, TextInput};
-use iced::{theme, Element, Length, Renderer};
+use iced::{theme, Command, Element, Length, Renderer};
 use iced_aw::{Card, Modal, TabLabel};
 use itertools::{enumerate, Itertools};
 use plotters_iced::ChartWidget;
@@ -69,7 +69,7 @@ impl HomePage {
         }
     }
 
-    pub fn update(&mut self, message: HomeMessage) {
+    pub fn update(&mut self, message: HomeMessage) -> Command<HomeMessage> {
         match message {
             HomeMessage::Plant => (),
             HomeMessage::Refresh => {
@@ -151,8 +151,11 @@ impl HomePage {
                         .map(String::from)
                         .collect();
                     self.show_modal = false;
-                    let _ =
-                        create_plant(self.new_plant.clone(), self.group.clone().parse().unwrap());
+                    return Command::perform(
+                        // TODO: Don't unwrap the group but give feedback to the user
+                        create_plant(self.new_plant.clone(), self.group.clone().parse().unwrap()),
+                        |_| HomeMessage::Refresh,
+                    );
                 } else {
                     self.new_group.careTips = self.careTips.split(',').map(String::from).collect();
                     for (i, sensor) in enumerate(self.new_group.sensorRanges.iter_mut()) {
@@ -170,10 +173,13 @@ impl HomePage {
                             .unwrap();
                     }
                     self.show_modal = false;
-                    let _ = create_group(self.new_group.clone());
+                    return Command::perform(create_group(self.new_group.clone()), |_| {
+                        HomeMessage::Refresh
+                    });
                 }
             }
         }
+        Command::none()
     }
 }
 

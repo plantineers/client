@@ -196,7 +196,7 @@ impl Application for Plantbuddy {
                 }
                 return self.login_page.update(message).map(Message::Login);
             }
-            Message::Home(message) => self.home_page.update(message),
+            Message::Home(message) => return self.home_page.update(message).map(Message::Home),
             Message::Detail(message) => self.detail_page.update(message),
             Message::Settings(message) => self.settings_tab.update(message),
             Message::Logout(message) => {
