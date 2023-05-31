@@ -47,10 +47,10 @@ impl HomePage {
         let mut vec_chart = Vec::new();
         for data in graph_data {
             vec_chart.push(PlantChart::new(
-                "".to_string(),
+                Sensortypes::Luftfeuchtigkeit.get_name(),
                 (0..data.timestamps.len() as i32).collect_vec(),
                 data.values,
-                Default::default(),
+                Sensortypes::Luftfeuchtigkeit.get_color(),
             ));
         }
         let charts = PlantCharts::new(vec_chart, HomeMessage::Plant);
@@ -313,6 +313,10 @@ impl Tab for HomePage {
                                         .on_input(|input| HomeMessage::FieldUpdated(8, input)),
                                 )
                                 .spacing(20)
+                                .push(
+                                    Text::new("Die Grenzen werden so eingetragen: max,min")
+                                        .size(TEXT_SIZE),
+                                )
                                 .push(
                                     TextInput::new(
                                         "Feuchtigkeitsgrenzwerte",
