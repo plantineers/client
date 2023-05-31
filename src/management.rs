@@ -1,4 +1,4 @@
-use crate::{Icon, Message, Plantbuddy, Tab};
+use crate::{Icon, Message, Plantbuddy, Tab, API_CLIENT};
 
 use iced::widget::vertical_slider::draw;
 use iced::widget::{button, container, row, scrollable, Rule};
@@ -65,11 +65,8 @@ pub struct User {
 /// The `notify_message` field is used to show any notifications to the user.
 #[derive(Debug, Clone)]
 pub(crate) struct ManagementTab {
-    #[deprecated(note = "This field is deprecated and will be removed in the future")]
     username_input: String,
-    #[deprecated(note = "This field is deprecated and will be removed in the future")]
     password_input: String,
-    client: Option<ApiClient>,
     role_input: PlantBuddyRole,
     users: Vec<User>,
     error_message: String,
@@ -82,10 +79,8 @@ impl ManagementTab {
     /// Creates a new instance of ManagementTab with default values.
     pub fn new() -> ManagementTab {
         ManagementTab {
-            // WHY WOULD WE DO THIS? When we create a ManagementTab we should have that data from the login 
             username_input: String::new(),
             password_input: String::new(),
-            client: None,
             role_input: PlantBuddyRole::User,
             users: Vec::new(),
             error_message: String::new(),
@@ -151,9 +146,9 @@ impl ManagementTab {
             }
             ManagementMessage::GetUsersPressed => {
                 self.error_message = String::new();
-                return Command::none();
-                // TODO
-                return get_all_users_pressed(self.client.clone().unwrap());
+                if let Some(client)= API_CLIENT.get() {
+                    return Command::perform(client.clone().get_all_users(), ManagementMessage::UsersReceived);
+                } 
             }
             ManagementMessage::UserCreated(result) => match result {
                 Ok(_) => {

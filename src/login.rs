@@ -14,8 +14,8 @@ use log::{info, log};
 use serde::{Deserialize, Serialize};
 use std::{env, fmt};
 
-use crate::requests::{login, RequestResult, TempCreationUser};
-use crate::{Icon, Message, Tab};
+use crate::requests::{login, RequestResult, TempCreationUser, ApiClient};
+use crate::{Icon, Message, Tab, API_CLIENT};
 
 /// Represents a message that can be sent to the `LoginTab` to update its state.
 #[derive(Debug, Clone)]
@@ -128,6 +128,7 @@ impl LoginTab {
                     info!("Login successful");
                     info!("User: {:?}", user);
                     self.login_failed = false;
+                    API_CLIENT.set(ApiClient::new(user.name, user.password)).unwrap();
                 }
                 Err(error) => {
                     info!("Login failed");
