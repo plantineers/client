@@ -1,6 +1,6 @@
 use crate::graphs::{PlantChart, PlantCharts};
 use crate::requests::{
-    create_plant, get_all_plant_ids_names, get_graphs, get_plant_details, GraphData,
+    create_plant, delete_plant, get_all_plant_ids_names, get_graphs, get_plant_details, GraphData,
     PlantGroupMetadata, PlantMetadata,
 };
 use crate::{Icon, Message, MyStylesheet, Tab, TEXT_SIZE};
@@ -8,7 +8,7 @@ use iced::alignment::{Horizontal, Vertical};
 use iced::widget::{Button, Column, Container, Row, Text, TextInput};
 use iced::{theme, Element, Length};
 use iced_aw::tab_bar::TabLabel;
-use iced_aw::{Card, Modal};
+use iced_aw::{style, Card, Modal};
 use iced_core::Alignment::Center;
 use plotters::prelude::*;
 use plotters_iced::ChartWidget;
@@ -45,6 +45,7 @@ pub enum DetailMessage {
     OkButtonPressed,
     OpenModal,
     CloseModal,
+    Delete,
     Pending,
     Load,
     PlantData(String),
@@ -154,6 +155,11 @@ impl DetailPage {
     pub fn update(&mut self, message: DetailMessage) {
         match message {
             DetailMessage::Pending => {
+                self.message = DetailMessage::Pending;
+            }
+            DetailMessage::Delete => {
+                delete_plant(self.plant.id.clone()).unwrap();
+                self.modal = false;
                 self.message = DetailMessage::Pending;
             }
             DetailMessage::Load => {
@@ -303,12 +309,13 @@ impl Tab for DetailPage {
                         .width(Length::Fill)
                         .push(
                             Button::new(
-                                Text::new("Cancel")
+                                Text::new("Pflanze löschen")
                                     .size(TEXT_SIZE)
                                     .horizontal_alignment(Horizontal::Center),
                             )
+                            .style(theme::Button::Destructive)
                             .width(Length::Fill)
-                            .on_press(DetailMessage::CloseModal),
+                            .on_press(DetailMessage::Delete),
                         )
                         .push(
                             Button::new(

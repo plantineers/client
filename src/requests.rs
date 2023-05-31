@@ -204,6 +204,27 @@ pub async fn create_plant(
     Ok(())
 }
 #[tokio::main(flavor = "current_thread")]
+pub async fn delete_plant(plant_id: String) -> Result<(), reqwest::Error> {
+    let client = reqwest::Client::new();
+    let response = client
+        .delete(&format!("{}plant/{}", ENDPOINT, plant_id))
+        .header("Authorization", "Basic YWRtaW46MTIzNA==")
+        .send()
+        .await?;
+    let result = response.error_for_status_ref().map(|_| ());
+
+    match result {
+        Ok(_) => {
+            info!("Successfully deleted plant");
+            Ok(())
+        }
+        Err(e) => {
+            info!("No Plant deleted");
+            Err(e)
+        }
+    }
+}
+#[tokio::main(flavor = "current_thread")]
 pub async fn create_group(new_group: PlantGroupMetadata) -> Result<(), reqwest::Error> {
     let mut json = serde_json::to_value(new_group.clone()).unwrap();
     for (i, sensor) in enumerate(new_group.sensorRanges.iter()) {
