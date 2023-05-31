@@ -11,7 +11,7 @@ use itertools::enumerate;
 use log::info;
 use reqwest::{Client, Request};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value, to_string};
+use serde_json::{json, to_string, Value};
 use tokio::sync::Mutex;
 
 /// Our Api client that keeps our client and credentials to avoid reencoding and redoing name resolutions
@@ -48,7 +48,7 @@ impl ApiClient {
     /// Gets all users in the database
     /// # Returns
     /// Returns a vector of `User` structs representing all the users.
-    pub async fn get_all_users(self) -> RequestResult<Vec<User>>{
+    pub async fn get_all_users(self) -> RequestResult<Vec<User>> {
         let client = self.client.lock().await;
         let response = client
             .get(ENDPOINT.to_string() + "users")
@@ -167,7 +167,6 @@ pub async fn create_plant(
 ) -> Result<(), reqwest::Error> {
     let mut json = serde_json::to_value(new_plant).unwrap();
     json["plantGroupId"] = json!(plant_group_id);
-    info!("{}", json);
     let client = reqwest::Client::new();
     let response = client
         .post(&format!("{}plant", ENDPOINT))
@@ -197,7 +196,6 @@ pub async fn create_group(new_group: PlantGroupMetadata) -> Result<(), reqwest::
     for (i, sensor) in enumerate(new_group.sensorRanges.iter()) {
         json["sensorRanges"][i]["sensor"] = json!(sensor.sensorType.name);
     }
-    info!("{}", json);
     let client = reqwest::Client::new();
     let response = client
         .post(&format!("{}plant-group", ENDPOINT))
@@ -222,21 +220,23 @@ pub async fn create_group(new_group: PlantGroupMetadata) -> Result<(), reqwest::
     Ok(())
 }
 #[tokio::main(flavor = "current_thread")]
-pub async fn get_all_plant_ids() -> Result<Vec<String>, reqwest::Error> {
+pub async fn get_all_plant_ids_names() -> Result<Vec<(String, String)>, reqwest::Error> {
     let client = reqwest::Client::new();
     let response = client
-        .get(ENDPOINT.to_string() + "plants")
+        .get(ENDPOINT.to_string() + "plants/overview")
         .header("Authorization", "Basic YWRtaW46MTIzNA==")
         .send()
         .await?;
     let text = response.text().await?;
-    info!("{:?}", text);
-    let mut ids: Vec<String> = vec![];
+    let mut ids: Vec<(String, String)> = vec![];
     if text != "{\"plants\":null}" {
         let value: Value = serde_json::from_str(&text).unwrap();
         let data = value.get("plants").unwrap();
-        data.as_array().unwrap().iter().for_each(|x| {
-            ids.push(x.to_string());
+        data.as_array().unwrap().iter().for_each(|plant| {
+            ids.push((
+                plant.get("id").unwrap().to_string(),
+                plant.get("name").unwrap().to_string(),
+            ));
         });
     }
     Ok(ids)
@@ -324,7 +324,7 @@ pub async fn get_plant_details(
     Ok((details, plant_group))
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct GraphData {
     pub values: Vec<i32>,
     pub timestamps: Vec<String>,
@@ -377,7 +377,7 @@ pub async fn get_graphs(
     for result in results {
         match result {
             Ok(Ok(graph_data)) => graphs.push(graph_data),
-            _ => {},
+            _ => {}
         }
     }
 

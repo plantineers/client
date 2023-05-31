@@ -40,7 +40,7 @@ use plotters_iced::{Chart, ChartBuilder, ChartWidget, DrawingBackend};
 use requests::ApiClient;
 use serde::__private::de::IdentifierDeserializer;
 
-use crate::detail::{DetailMessage, DetailPage};
+use crate::detail::{DetailMessage, DetailPage, Sensortypes};
 use crate::home::{HomeMessage, HomePage};
 use crate::login::{LoginMessage, LoginTab, PlantBuddyRole};
 use crate::logout::{LogoutMessage, LogoutTab};
@@ -195,6 +195,8 @@ impl Application for Plantbuddy {
                         // Update the logged in user in the management tab
                         self.management_tab.logged_in_user = user.clone();
 
+                        self.home_page
+                            .update(HomeMessage::SwitchGraph(Sensortypes::Feuchtigkeit));
                         // Get all users from the server and update the management tab
                         return self
                             .management_tab

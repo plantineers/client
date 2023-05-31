@@ -1,25 +1,27 @@
 use crate::detail::Sensortypes;
 use crate::graphs::{PlantChart, PlantCharts};
 use crate::requests::{
-    create_group, create_plant, get_all_plant_ids, get_graphs, GraphData, PlantGroupMetadata,
+    create_group, create_plant, get_all_plant_ids_names, get_graphs, GraphData, PlantGroupMetadata,
     PlantMetadata,
 };
 use crate::{Icon, Message, MyStylesheet, Tab, TEXT_SIZE};
 use iced::alignment::{Horizontal, Vertical};
 use iced::widget::{Button, Column, Container, Row, Text, TextInput};
-use iced::{theme, Element, Length, Renderer};
+use iced::{theme, Command, Element, Length, Renderer};
 use iced_aw::{Card, Modal, TabLabel};
 use itertools::{enumerate, Itertools};
+use log::info;
 use plotters_iced::ChartWidget;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub enum HomeMessage {
     OpenModalPlant,
+    Plant,
     OpenModalGroup,
     CloseModal,
     CancelButtonPressed,
     OkButtonPressed,
-    Plant,
     Refresh,
     SwitchGraph(Sensortypes),
     FieldUpdated(u8, String),
@@ -37,22 +39,14 @@ pub(crate) struct HomePage {
     charts: PlantCharts<HomeMessage>,
     active_sensor: Sensortypes,
     ids: Vec<String>,
+    sensor_data: HashMap<String, Vec<GraphData>>,
 }
 
 impl HomePage {
     pub fn new() -> Self {
-        let ids = get_all_plant_ids().unwrap();
-        let graph_data: Vec<GraphData> =
-            get_graphs(ids.clone(), Sensortypes::Luftfeuchtigkeit.get_name()).unwrap();
-        let mut vec_chart = Vec::new();
-        for data in graph_data {
-            vec_chart.push(PlantChart::new(
-                Sensortypes::Luftfeuchtigkeit.get_name(),
-                (0..data.timestamps.len() as i32).collect_vec(),
-                data.values,
-                Sensortypes::Luftfeuchtigkeit.get_color(),
-            ));
-        }
+        let ids_name = get_all_plant_ids_names().unwrap();
+        let ids = ids_name.iter().map(|x| x.0.clone()).collect_vec();
+        let vec_chart = Vec::new();
         let charts = PlantCharts::new(vec_chart, HomeMessage::Plant);
         HomePage {
             show_modal: false,
@@ -66,6 +60,7 @@ impl HomePage {
             ids,
             new_group: PlantGroupMetadata::default(),
             sensor_border: vec!["".to_string(), "".to_string(), "".to_string()],
+            sensor_data: HashMap::new(),
         }
     }
 
@@ -73,28 +68,33 @@ impl HomePage {
         match message {
             HomeMessage::Plant => (),
             HomeMessage::Refresh => {
-                let ids = get_all_plant_ids().unwrap();
-                let graph_data: Vec<GraphData> =
-                    get_graphs(ids, self.active_sensor.get_name()).unwrap();
-                self.charts = PlantCharts::update_charts(
-                    &self.charts.clone(),
-                    HomeMessage::Plant,
-                    graph_data,
-                    Sensortypes::Luftfeuchtigkeit,
-                    format!("{}%", self.active_sensor),
-                )
+                HomePage::new();
             }
             HomeMessage::SwitchGraph(sensortypes) => {
                 self.active_sensor = sensortypes;
-                let graph_data: Vec<GraphData> =
-                    get_graphs(self.ids.clone(), sensortypes.get_name()).unwrap();
+                let mut graph_data = vec![];
+                if !self
+                    .sensor_data
+                    .contains_key(sensortypes.get_name().as_str())
+                {
+                    graph_data = get_graphs(self.ids.clone(), sensortypes.get_name()).unwrap();
+                    self.sensor_data
+                        .insert(sensortypes.get_name(), graph_data.clone());
+                } else {
+                    graph_data = self
+                        .sensor_data
+                        .get(sensortypes.get_name().as_str())
+                        .unwrap()
+                        .clone();
+                }
+
                 self.charts = PlantCharts::update_charts(
                     &self.charts.clone(),
                     HomeMessage::Plant,
-                    graph_data,
+                    graph_data.clone(),
                     sensortypes,
                     format!("{}%", self.active_sensor),
-                )
+                );
             }
             HomeMessage::OpenModalPlant => {
                 self.modal_is_plant = true;
@@ -143,7 +143,9 @@ impl HomePage {
                 }
                 _ => (),
             },
-            HomeMessage::CloseModal => self.show_modal = false,
+            HomeMessage::CloseModal => {
+                self.show_modal = false;
+            }
             HomeMessage::CancelButtonPressed => self.show_modal = false,
             HomeMessage::OkButtonPressed => {
                 if self.modal_is_plant {

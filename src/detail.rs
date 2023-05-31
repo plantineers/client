@@ -1,6 +1,7 @@
 use crate::graphs::{PlantChart, PlantCharts};
 use crate::requests::{
-    get_all_plant_ids, get_graphs, get_plant_details, GraphData, PlantGroupMetadata, PlantMetadata,
+    get_all_plant_ids_names, get_graphs, get_plant_details, GraphData, PlantGroupMetadata,
+    PlantMetadata,
 };
 use crate::{Icon, Message, MyStylesheet, Tab, TEXT_SIZE};
 use iced::alignment::{Horizontal, Vertical};
@@ -18,6 +19,7 @@ use std::vec;
 #[derive(Debug, Clone)]
 pub struct DetailPlant {
     pub id: String,
+    pub id_names: Vec<(String, String)>,
     pub data: PlantMetadata,
     pub charts: PlantCharts<DetailMessage>,
 }
@@ -34,6 +36,7 @@ impl DetailPlant {
         );
         DetailPlant {
             id,
+            id_names: vec![],
             data: plant_data.0,
             charts,
         }
@@ -101,6 +104,7 @@ impl DetailPage {
     pub fn new() -> DetailPage {
         let plant = DetailPlant {
             id: String::new(),
+            id_names: get_all_plant_ids_names().unwrap(),
             data: PlantMetadata::default(),
             charts: PlantCharts::new(Vec::new(), DetailMessage::Loaded),
         };
@@ -114,6 +118,7 @@ impl DetailPage {
         info!("Updating detail page");
         match message {
             DetailMessage::Load => {
+                DetailPage::new();
                 self.message = DetailMessage::Load;
             }
             DetailMessage::PlantData(id) => {
@@ -131,7 +136,6 @@ impl DetailPage {
                     sensor_types,
                     self.plant.data.name.clone(),
                 );
-                info!("Sensor: {:?}", self.plant.data.plantGroup.sensorRanges);
                 self.plant
                     .data
                     .plantGroup
@@ -152,7 +156,6 @@ impl DetailPage {
                             BLACK,
                         ));
                     });
-                info!("Charts: {:?}", self.plant.charts.charts);
                 self.message = DetailMessage::Loaded;
             }
             DetailMessage::Loaded => {}
@@ -359,20 +362,13 @@ impl Tab for DetailPage {
                     .align_items(Center);
                 row
             } else {
-                let ids = get_all_plant_ids().unwrap();
-                info!("Got all plant ids: {:?}", ids);
-                let mut id_and_name = Vec::new();
-                for id in ids {
-                    let plant_data = get_plant_details(id.clone()).unwrap();
-                    id_and_name.push((id, plant_data.0.name));
-                }
                 let mut id_name_column: Column<DetailMessage> = Column::new().push(
                     Row::new()
                         .push(Text::new("ID").size(TEXT_SIZE))
                         .push(Text::new("Name").size(TEXT_SIZE))
                         .spacing(20),
                 );
-                for id in id_and_name {
+                for id in self.plant.id_names.clone() {
                     let id_name_row = Row::new()
                         .push(Text::new(id.0.clone()).size(TEXT_SIZE))
                         .push(Text::new(id.1.clone()).size(TEXT_SIZE))

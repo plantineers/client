@@ -10,7 +10,7 @@ use plotters::series::LineSeries;
 use plotters::style::{Color, IntoFont, BLACK, BLUE, WHITE};
 use plotters_iced::{Chart, ChartBuilder, ChartWidget, DrawingBackend};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PlantChart {
     pub name: String,
     pub x: Vec<i32>,
@@ -33,7 +33,7 @@ impl PlantChart {
         self.color
     }
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PlantCharts<M> {
     pub charts: Vec<PlantChart>,
     pub message: M,
