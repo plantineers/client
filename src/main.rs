@@ -1,8 +1,23 @@
-#![allow(unused_imports)]
-#![allow(dead_code)]
+//! The Plantbuddy struct is the main struct of the application.
+//! Plantbuddy is a desktop application for managing plants. It allows users to view and edit plant data,
+//! manage users, and customize settings. The application is built using the Rust programming language
+//! and the Iced GUI library. The main.rs file contains the entry point for the application and defines
+//! the Plantbuddy struct, which holds the application state and handles messages and updates. The struct
+//! implements the Application trait from the Iced library, which defines the behavior of the application.
+//! The file also includes several modules that define the different pages and components of the application,
+//! such as the home page, detail page, login page, and management page. Each module defines a struct that
+//! implements the Tab trait, which defines the behavior of a tab in the application. The file also includes
+//!  everal utility functions and constants, such as the Icon enum, which defines the icons used in the
+//! application, and the EXTERNAL_ICON_FONT constant, which defines the font used for the icons.
 
+mod detail;
 mod graphs;
-use std::sync::OnceLock;
+mod home;
+mod login;
+mod logout;
+mod management;
+mod requests;
+mod settings;
 
 use crate::graphs::PlantCharts;
 use iced::alignment::{Horizontal, Vertical};
@@ -22,22 +37,13 @@ use plotters::prelude::*;
 use plotters_iced::{Chart, ChartBuilder, ChartWidget, DrawingBackend};
 use requests::ApiClient;
 use serde::__private::de::IdentifierDeserializer;
+use std::sync::OnceLock;
 
-mod home;
-use crate::home::{HomeMessage, HomePage};
-mod detail;
 use crate::detail::{DetailMessage, DetailPage};
-mod login;
+use crate::home::{HomeMessage, HomePage};
 use crate::login::{LoginMessage, LoginTab, PlantBuddyRole};
-mod logout;
-mod management;
-mod requests;
-mod settings;
-
-use crate::management::{ManagementMessage, ManagementTab};
-
 use crate::logout::{LogoutMessage, LogoutTab};
-
+use crate::management::{ManagementMessage, ManagementTab};
 use crate::requests::{RequestResult, TempCreationUser};
 use settings::{SettingsMessage, SettingsTab, TabBarPosition};
 
@@ -177,15 +183,16 @@ impl Application for Plantbuddy {
             Message::Login(message) => {
                 // Check if login was successful and if so, update the user
                 if let LoginMessage::Login(result) = &message {
-                    if let RequestResult::Ok(role) = result {
+                    if let RequestResult::Ok(user) = result {
                         self.is_logged_in = LoginState::LoggedIn;
-                        self.user = role.clone();
+                        self.user = user.clone();
 
                         // Clear the LoginTab
+
                         self.login_page = LoginTab::new();
 
                         // Update the logged in user in the management tab
-                        self.management_tab.logged_in_user = role.clone();
+                        self.management_tab.logged_in_user = user.clone();
 
                         // Get all users from the server and update the management tab
                         return self
