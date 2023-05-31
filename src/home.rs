@@ -81,6 +81,7 @@ impl HomePage {
                     HomeMessage::Plant,
                     graph_data,
                     Sensortypes::Luftfeuchtigkeit,
+                    format!("{}%", self.active_sensor),
                 )
             }
             HomeMessage::SwitchGraph(sensortypes) => {
@@ -92,6 +93,7 @@ impl HomePage {
                     HomeMessage::Plant,
                     graph_data,
                     sensortypes,
+                    format!("{}%", self.active_sensor),
                 )
             }
             HomeMessage::OpenModalPlant => {

@@ -68,11 +68,12 @@ impl<M: 'static> PlantCharts<M> {
         message: M,
         graph_data: Vec<GraphData>,
         sensor: Sensortypes,
+        name: String,
     ) -> PlantCharts<M> {
         let mut charts = Vec::new();
         for data in &graph_data {
             let chart = PlantChart::new(
-                sensor.to_string(),
+                format!("{}-{}", name, sensor),
                 (0..data.timestamps.len() as i32).collect_vec(),
                 data.values.clone(),
                 sensor.get_color(),
@@ -86,8 +87,9 @@ impl<M: 'static> PlantCharts<M> {
         message: M,
         graph_data: Vec<GraphData>,
         sensor: Sensortypes,
+        name: String,
     ) -> PlantCharts<M> {
-        PlantCharts::<M>::create_charts(message, graph_data, sensor)
+        PlantCharts::<M>::create_charts(message, graph_data, sensor, name)
     }
 }
 
@@ -109,15 +111,7 @@ impl<M: 'static + Clone> Chart<M> for PlantCharts<M> {
             .axis_style(BLACK.mix(0.5))
             .draw()
             .expect("failed to draw mesh");
-        chart
-            .configure_series_labels()
-            .legend_area_size(50)
-            .border_style(BLACK)
-            .background_style(WHITE.mix(0.8))
-            .position(SeriesLabelPosition::UpperLeft)
-            .label_font("Hectic")
-            .draw()
-            .unwrap();
+
         for plantchart in self.charts.iter() {
             let color = plantchart.get_color();
             chart
@@ -136,6 +130,15 @@ impl<M: 'static + Clone> Chart<M> for PlantCharts<M> {
                 .label(plantchart.name.as_str())
                 .legend(move |(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], color));
         }
+        chart
+            .configure_series_labels()
+            .legend_area_size(50)
+            .border_style(BLACK)
+            .background_style(WHITE.mix(0.8))
+            .position(SeriesLabelPosition::UpperLeft)
+            .label_font("Hectic")
+            .draw()
+            .unwrap();
     }
 }
 

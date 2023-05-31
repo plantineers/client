@@ -1,6 +1,8 @@
 use crate::detail::DetailMessage::OpenModal;
 use crate::graphs::{PlantChart, PlantCharts};
-use crate::requests::{get_all_plant_ids, get_graphs, get_plant_details, GraphData, PlantMetadata};
+use crate::requests::{
+    get_all_plant_ids, get_graphs, get_plant_details, GraphData, PlantGroupMetadata, PlantMetadata,
+};
 use crate::{Icon, Message, MyStylesheet, Tab, TEXT_SIZE};
 use iced::alignment::{Horizontal, Vertical};
 use iced::widget::{Button, Column, Container, Row, Text, TextInput};
@@ -23,9 +25,13 @@ pub struct DetailPlant {
 
 impl DetailPlant {
     pub fn new(id: String, graph_data: Vec<GraphData>) -> Self {
-        let charts =
-            PlantCharts::create_charts(DetailMessage::Load, graph_data, Sensortypes::Feuchtigkeit);
-        let plant_data = get_plant_details(id).unwrap();
+        let plant_data: (PlantMetadata, PlantGroupMetadata) = get_plant_details(id).unwrap();
+        let charts = PlantCharts::create_charts(
+            DetailMessage::Load,
+            graph_data,
+            Sensortypes::Feuchtigkeit,
+            plant_data.0.name.clone(),
+        );
         DetailPlant {
             id: String::new(),
             data: plant_data.0,
@@ -123,6 +129,7 @@ impl DetailPage {
                     DetailMessage::Loaded,
                     graph_data.unwrap(),
                     sensor_types,
+                    self.plant.data.name.clone(),
                 );
                 info!("Sensor: {:?}", self.plant.data.plantGroup.sensorRanges);
                 self.plant
@@ -133,13 +140,13 @@ impl DetailPage {
                     .filter(|sensor| sensor.sensorType.name == sensor_types.get_name())
                     .for_each(|sensor| {
                         self.plant.charts.charts.push(PlantChart::new(
-                            sensor.sensorType.name.clone(),
+                            format!("{:?}_Max_Grenze", self.plant.data.name.clone()),
                             self.plant.charts.charts[0].x.clone(),
                             vec![sensor.max; self.plant.charts.charts[0].x.len()],
                             BLACK,
                         ));
                         self.plant.charts.charts.push(PlantChart::new(
-                            sensor.sensorType.name.clone(),
+                            format!("{:?}_Min_Grenze", self.plant.data.name.clone()),
                             self.plant.charts.charts[0].x.clone(),
                             vec![sensor.min; self.plant.charts.charts[0].x.len()],
                             BLACK,
