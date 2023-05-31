@@ -17,11 +17,11 @@ use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub enum HomeMessage {
     OpenModalPlant,
-    Plant,
     OpenModalGroup,
     CloseModal,
     CancelButtonPressed,
     OkButtonPressed,
+    Plant,
     Refresh,
     SwitchGraph(Sensortypes),
     FieldUpdated(u8, String),
@@ -143,9 +143,7 @@ impl HomePage {
                 }
                 _ => (),
             },
-            HomeMessage::CloseModal => {
-                self.show_modal = false;
-            }
+            HomeMessage::CloseModal => self.show_modal = false,
             HomeMessage::CancelButtonPressed => self.show_modal = false,
             HomeMessage::OkButtonPressed => {
                 if self.modal_is_plant {
