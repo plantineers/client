@@ -12,6 +12,8 @@
 
 mod detail;
 mod graphs;
+use std::sync::OnceLock;
+
 mod home;
 mod login;
 mod logout;
@@ -35,6 +37,7 @@ use log::info;
 use plotters::coord::types::RangedCoordf32;
 use plotters::prelude::*;
 use plotters_iced::{Chart, ChartBuilder, ChartWidget, DrawingBackend};
+use requests::ApiClient;
 use serde::__private::de::IdentifierDeserializer;
 
 use crate::detail::{DetailMessage, DetailPage};
@@ -62,6 +65,8 @@ enum Icon {
     X,
 }
 pub struct MyStylesheet;
+
+static API_CLIENT: OnceLock<ApiClient> = OnceLock::new();
 
 impl StyleSheet for MyStylesheet {
     type Style = iced::Theme;

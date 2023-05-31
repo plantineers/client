@@ -96,7 +96,7 @@ impl Tab for SettingsTab {
                                 self.settings().tab_bar_position,
                                 SettingsMessage::PositionSelected,
                             )
-                                .size(16),
+                            .size(16),
                         )
                     },
                 ))
@@ -110,12 +110,12 @@ impl Tab for SettingsTab {
                                 self.settings().tab_bar_theme,
                                 SettingsMessage::ThemeSelected,
                             )
-                                .size(16),
+                            .size(16),
                         )
                     }),
                 ),
         )
-            .into();
+        .into();
 
         content.map(Message::Settings)
     }
