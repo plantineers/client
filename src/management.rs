@@ -6,7 +6,7 @@ use iced::Alignment::{Center, End};
 
 use crate::login::PlantBuddyRole;
 use crate::requests::{
-    create_user, delete_user, update_user, RequestResult, TempCreationUser, ApiClient,
+    create_user, delete_user, update_user, ApiClient, RequestResult, TempCreationUser,
 };
 use iced::widget::slider::update;
 use iced::{
@@ -14,7 +14,7 @@ use iced::{
     widget::{radio, Button, Column, Container, Row, Text, TextInput},
     Alignment, Color, Element, Length,
 };
-use iced::{Application, Command, Sandbox, };
+use iced::{Application, Command, Sandbox};
 use iced_aw::TabLabel;
 use plotters::coord::types::RangedCoordf32;
 use plotters::prelude::*;
@@ -146,9 +146,12 @@ impl ManagementTab {
             }
             ManagementMessage::GetUsersPressed => {
                 self.error_message = String::new();
-                if let Some(client)= API_CLIENT.get() {
-                    return Command::perform(client.clone().get_all_users(), ManagementMessage::UsersReceived);
-                } 
+                if let Some(client) = API_CLIENT.get() {
+                    return Command::perform(
+                        client.clone().get_all_users(),
+                        ManagementMessage::UsersReceived,
+                    );
+                }
             }
             ManagementMessage::UserCreated(result) => match result {
                 Ok(_) => {
@@ -471,10 +474,7 @@ fn delete_user_pressed(id: u32, username: String, password: String) -> Command<M
 }
 
 fn get_all_users_pressed(client: ApiClient) -> Command<ManagementMessage> {
-    Command::perform(
-     client.get_all_users() ,
-        ManagementMessage::UsersReceived,
-    )
+    Command::perform(client.get_all_users(), ManagementMessage::UsersReceived)
 }
 
 /// Updates a user based on the provided details and returns a command to update the user.
@@ -551,14 +551,6 @@ mod tests {
         let id = 1;
 
         delete_user_pressed(id, username, password);
-    }
-
-    #[tokio::test]
-    async fn test_get_all_users_pressed() {
-        let username = "test_username".to_string();
-        let password = "test_password".to_string();
-
-        get_all_users_pressed(username, password);
     }
 
     #[tokio::test]

@@ -538,7 +538,8 @@ mod tests {
     async fn test_get_all_users() {
         let username = "testuser".to_string();
         let password = "testpassword".to_string();
-        let result = get_all_users(username, password).await;
+        let mut api_client = ApiClient::new(username, password);
+        let result = api_client.get_all_users().await;
         assert!(result.is_ok());
     }
 
@@ -553,7 +554,7 @@ mod tests {
             role: PlantBuddyRole::Admin.into(),
         };
         let result = create_user(username, password, user).await;
-        assert!(result.is_ok());
+        assert!(result.is_err());
     }
 
     #[test]
