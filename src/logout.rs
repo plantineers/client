@@ -73,7 +73,7 @@ impl Tab for LogoutTab {
     /// # Returns
     /// A `String` with the value "Logout".
     fn title(&self) -> String {
-        String::from("Logout")
+        String::from("Abmelden")
     }
 
     /// Returns the tab label of the `LogoutTab`.
@@ -186,7 +186,7 @@ mod tests {
     #[test]
     fn test_logout_tab_title() {
         let tab = LogoutTab::new();
-        assert_eq!(tab.title(), "Logout");
+        assert_eq!(tab.title(), "Abmelden");
     }
 
     #[test]

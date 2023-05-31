@@ -21,21 +21,11 @@ struct TempUser {
 }
 
 /// Represents a temporary user used to create a new user.
-#[derive(Deserialize, Debug, Serialize, Clone)]
+#[derive(Deserialize, Debug, Serialize, Clone, Default)]
 pub struct TempCreationUser {
     pub(crate) name: String,
     pub(crate) password: String,
     pub(crate) role: u64,
-}
-/// Implements the `default` trait for `TempCreationUser`.
-impl Default for TempCreationUser {
-    fn default() -> Self {
-        TempCreationUser {
-            name: String::new(),
-            password: String::new(),
-            role: PlantBuddyRole::NotLoggedIn.into(),
-        }
-    }
 }
 
 /// Represents the result of a request.
@@ -340,7 +330,10 @@ pub async fn get_graphs(
             .header("Authorization", "Basic YWRtaW46MTIzNA==")
             .send()
             .await?;
-
+        info!("{:?}", format!(
+                "{}sensor-data?sensor={}&plant={}&from=2019-01-01T00:00:00.000Z&to=2023-05-29T23:00:00.000Z",
+                ENDPOINT, sensor_type, plant_id
+            ));
         let text = response.text().await?;
         if text != "{\"data\":null}" {
             let value: Value = serde_json::from_str(&text).unwrap();
@@ -523,7 +516,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_user() {
-        let username = "testuser2".to_string();
+        let username = "testuser".to_string();
         let password = "testpassword".to_string();
         let random: u32 = random();
         let user = TempCreationUser {
