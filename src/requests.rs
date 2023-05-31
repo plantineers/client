@@ -330,7 +330,10 @@ pub async fn get_graphs(
             .header("Authorization", "Basic YWRtaW46MTIzNA==")
             .send()
             .await?;
-
+        info!("{:?}", format!(
+                "{}sensor-data?sensor={}&plant={}&from=2019-01-01T00:00:00.000Z&to=2023-05-29T23:00:00.000Z",
+                ENDPOINT, sensor_type, plant_id
+            ));
         let text = response.text().await?;
         if text != "{\"data\":null}" {
             let value: Value = serde_json::from_str(&text).unwrap();

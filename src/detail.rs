@@ -1,4 +1,3 @@
-use crate::detail::DetailMessage::OpenModal;
 use crate::graphs::{PlantChart, PlantCharts};
 use crate::requests::{
     get_all_plant_ids, get_graphs, get_plant_details, GraphData, PlantGroupMetadata, PlantMetadata,
@@ -25,7 +24,8 @@ pub struct DetailPlant {
 
 impl DetailPlant {
     pub fn new(id: String, graph_data: Vec<GraphData>) -> Self {
-        let plant_data: (PlantMetadata, PlantGroupMetadata) = get_plant_details(id).unwrap();
+        let plant_data: (PlantMetadata, PlantGroupMetadata) =
+            get_plant_details(id.clone()).unwrap();
         let charts = PlantCharts::create_charts(
             DetailMessage::Load,
             graph_data,
@@ -33,7 +33,7 @@ impl DetailPlant {
             plant_data.0.name.clone(),
         );
         DetailPlant {
-            id: String::new(),
+            id,
             data: plant_data.0,
             charts,
         }
@@ -123,7 +123,7 @@ impl DetailPage {
             }
             DetailMessage::SwitchGraph(sensor_types) => {
                 let sensor_name = sensor_types.get_name();
-                let graph_data = get_graphs(vec!["1".to_string()], sensor_name);
+                let graph_data = get_graphs(vec![self.plant.id.clone()], sensor_name);
                 self.plant.charts = PlantCharts::update_charts(
                     &self.plant.charts,
                     DetailMessage::Loaded,
