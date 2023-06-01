@@ -1,7 +1,7 @@
 use crate::graphs::{PlantChart, PlantCharts};
 use crate::requests::{
-    create_plant, delete_plant, get_all_plant_ids_names, get_graphs, get_plant_details, GraphData,
-    PlantGroupMetadata, PlantMetadata,
+    create_group, create_plant, delete_group, delete_plant, get_all_plant_ids_names, get_graphs,
+    get_plant_details, GraphData, PlantGroupMetadata, PlantMetadata,
 };
 use crate::{Icon, Message, MyStylesheet, Tab, TEXT_SIZE};
 use iced::alignment::{Horizontal, Vertical};
@@ -10,6 +10,7 @@ use iced::{theme, Element, Length};
 use iced_aw::tab_bar::TabLabel;
 use iced_aw::{style, Card, Modal};
 use iced_core::Alignment::Center;
+use itertools::enumerate;
 use plotters::prelude::*;
 use plotters_iced::ChartWidget;
 use rand::Rng;
@@ -43,7 +44,8 @@ impl DetailPlant {
 #[derive(Debug, Clone, PartialEq)]
 pub enum DetailMessage {
     OkButtonPressed,
-    OpenModal,
+    OpenModalPlant,
+    OpenModalGroup,
     CloseModal,
     Delete,
     Pending,
@@ -57,7 +59,10 @@ pub enum DetailMessage {
 
 pub(crate) struct DetailPage {
     pub modal: bool,
+    pub modal_is_plant: bool,
     pub additionalCareTips: String,
+    pub careTips: String,
+    pub sensor_border: Vec<String>,
     pub id_names: Vec<(String, String)>,
     pub plant: DetailPlant,
     pub message: DetailMessage,
@@ -123,6 +128,9 @@ impl DetailPage {
         DetailPage {
             id_names: vec![],
             modal: false,
+            modal_is_plant: true,
+            careTips: String::new(),
+            sensor_border: vec![],
             additionalCareTips: String::new(),
             plant,
             message: DetailMessage::Pending,
@@ -158,7 +166,11 @@ impl DetailPage {
                 self.message = DetailMessage::Pending;
             }
             DetailMessage::Delete => {
-                delete_plant(self.plant.id.clone()).unwrap();
+                if self.modal_is_plant {
+                    delete_plant(self.plant.id.clone()).unwrap();
+                } else {
+                    delete_group(self.plant.data.plantGroup.id.to_string()).unwrap();
+                }
                 self.modal = false;
                 self.message = DetailMessage::Pending;
             }
@@ -171,8 +183,20 @@ impl DetailPage {
                 self.plant = DetailPlant::new(id, graph_data.unwrap());
                 self.plant.data.additionalCareTips.iter().for_each(|x| {
                     self.additionalCareTips.push_str(x);
-                    self.additionalCareTips.push(',');
+                    self.additionalCareTips.push(';');
                 });
+                self.plant.data.plantGroup.careTips.iter().for_each(|x| {
+                    self.careTips.push_str(x);
+                    self.careTips.push(';');
+                });
+                self.plant
+                    .data
+                    .plantGroup
+                    .sensorRanges
+                    .iter()
+                    .for_each(|x| {
+                        self.sensor_border.push(format!("{};{}", x.max, x.min));
+                    });
                 self.plant
                     .charts
                     .charts
@@ -199,24 +223,54 @@ impl DetailPage {
             DetailMessage::Search(value) => {
                 self.plant.id = value;
             }
-            DetailMessage::OpenModal => {
+            DetailMessage::OpenModalPlant => {
+                self.modal_is_plant = true;
+                self.modal = true;
+            }
+            DetailMessage::OpenModalGroup => {
+                self.modal_is_plant = false;
                 self.modal = true;
             }
             DetailMessage::CloseModal => {
                 self.modal = false;
             }
             DetailMessage::OkButtonPressed => {
-                self.plant.data.additionalCareTips = self
-                    .additionalCareTips
-                    .split(',')
-                    .map(|x| x.to_string())
-                    .collect();
-                let _ = create_plant(
-                    self.plant.data.clone(),
-                    self.plant.data.plantGroup.id,
-                    Some(self.plant.id.clone()),
-                );
+                if self.modal_is_plant {
+                    self.plant.data.additionalCareTips = self
+                        .additionalCareTips
+                        .split(';')
+                        .map(|x| x.to_string())
+                        .collect();
+                    let _ = create_plant(
+                        self.plant.data.clone(),
+                        self.plant.data.plantGroup.id,
+                        Some(self.plant.id.clone()),
+                    );
+                } else {
+                    self.plant.data.plantGroup.careTips =
+                        self.careTips.split(';').map(|x| x.to_string()).collect();
+                    for (i, sensor) in enumerate(self.plant.data.plantGroup.sensorRanges.iter_mut())
+                    {
+                        sensor.max = self.sensor_border.clone()[i]
+                            .split(';')
+                            .next()
+                            .unwrap()
+                            .parse()
+                            .unwrap();
+                        sensor.min = self.sensor_border.clone()[i]
+                            .split(';')
+                            .last()
+                            .unwrap()
+                            .parse()
+                            .unwrap();
+                    }
+                    let _ = create_group(
+                        self.plant.data.plantGroup.clone(),
+                        Some(self.plant.data.plantGroup.id.to_string().clone()),
+                    );
+                }
                 self.modal = false;
+                self.message = DetailMessage::Pending;
             }
             DetailMessage::FieldUpdated(index, value) => match index {
                 0 => self.plant.data.name = value,
@@ -225,6 +279,24 @@ impl DetailPage {
                 3 => self.plant.data.species = value,
                 4 => self.plant.data.plantGroup.id = value.parse().unwrap(),
                 5 => self.additionalCareTips = value,
+                6 => {
+                    self.plant.data.plantGroup.name = value;
+                }
+                7 => {
+                    self.plant.data.description = value;
+                }
+                8 => {
+                    self.careTips = value;
+                }
+                9 => {
+                    self.sensor_border[0] = value;
+                }
+                10 => {
+                    self.sensor_border[1] = value;
+                }
+                11 => {
+                    self.sensor_border[2] = value;
+                }
                 _ => {}
             },
         }
@@ -246,95 +318,187 @@ impl Tab for DetailPage {
     }
     fn content(&self) -> Element<'_, Self::Message> {
         if self.modal {
-            let container: Container<DetailMessage> =
-                Container::new(Text::new("Pflanze editieren").size(TEXT_SIZE))
-                    .width(Length::Fill)
-                    .height(Length::Fill)
-                    .align_x(Horizontal::Center)
-                    .align_y(Vertical::Center);
-            let content: Element<'_, DetailMessage> = Modal::new(self.modal, container, || {
-                Card::new(
-                    Text::new("Pflanze editieren")
-                        .size(TEXT_SIZE)
-                        .horizontal_alignment(Horizontal::Center),
-                    Column::new()
-                        .push(
-                            TextInput::new("Pflanzenname", &self.plant.data.name)
-                                .size(TEXT_SIZE)
-                                .on_input(|input| DetailMessage::FieldUpdated(0, input)),
-                        )
-                        .spacing(20)
-                        .push(
-                            TextInput::new(
-                                "Beschreibung der Pflanze",
-                                &self.plant.data.description,
-                            )
-                            .size(TEXT_SIZE)
-                            .on_input(|input| DetailMessage::FieldUpdated(1, input)),
-                        )
-                        .spacing(20)
-                        .push(
-                            TextInput::new("Position der Pflanze", &self.plant.data.location)
-                                .size(TEXT_SIZE)
-                                .on_input(|input| DetailMessage::FieldUpdated(2, input)),
-                        )
-                        .spacing(20)
-                        .spacing(20)
-                        .push(
-                            TextInput::new("Pflanzenspezies", &self.plant.data.species)
-                                .size(TEXT_SIZE)
-                                .on_input(|input| DetailMessage::FieldUpdated(3, input)),
-                        )
-                        .spacing(20)
-                        .push(
-                            TextInput::new(
-                                "Pflanzengruppe",
-                                &self.plant.data.plantGroup.id.to_string(),
-                            )
-                            .size(TEXT_SIZE)
-                            .on_input(|input| DetailMessage::FieldUpdated(4, input)),
-                        )
-                        .spacing(20)
-                        .push(
-                            TextInput::new("Pflegehinweise", &self.additionalCareTips)
-                                .size(TEXT_SIZE)
-                                .on_input(|input| DetailMessage::FieldUpdated(5, input)),
-                        )
-                        .spacing(20),
-                )
-                .foot(
-                    Row::new()
-                        .spacing(10)
-                        .padding(5)
+            if self.modal_is_plant {
+                let container: Container<DetailMessage> =
+                    Container::new(Text::new("Pflanze editieren").size(TEXT_SIZE))
                         .width(Length::Fill)
-                        .push(
-                            Button::new(
-                                Text::new("Pflanze löschen")
+                        .height(Length::Fill)
+                        .align_x(Horizontal::Center)
+                        .align_y(Vertical::Center);
+                let content: Element<'_, DetailMessage> = Modal::new(self.modal, container, || {
+                    Card::new(
+                        Text::new("Pflanze editieren")
+                            .size(TEXT_SIZE)
+                            .horizontal_alignment(Horizontal::Center),
+                        Column::new()
+                            .push(
+                                TextInput::new("Pflanzenname", &self.plant.data.name)
                                     .size(TEXT_SIZE)
-                                    .horizontal_alignment(Horizontal::Center),
+                                    .on_input(|input| DetailMessage::FieldUpdated(0, input)),
                             )
-                            .style(theme::Button::Destructive)
-                            .width(Length::Fill)
-                            .on_press(DetailMessage::Delete),
-                        )
-                        .push(
-                            Button::new(
-                                Text::new("Ok")
+                            .spacing(20)
+                            .push(
+                                TextInput::new(
+                                    "Beschreibung der Pflanze",
+                                    &self.plant.data.description,
+                                )
+                                .size(TEXT_SIZE)
+                                .on_input(|input| DetailMessage::FieldUpdated(1, input)),
+                            )
+                            .spacing(20)
+                            .push(
+                                TextInput::new("Position der Pflanze", &self.plant.data.location)
                                     .size(TEXT_SIZE)
-                                    .horizontal_alignment(Horizontal::Center),
+                                    .on_input(|input| DetailMessage::FieldUpdated(2, input)),
                             )
+                            .spacing(20)
+                            .spacing(20)
+                            .push(
+                                TextInput::new("Pflanzenspezies", &self.plant.data.species)
+                                    .size(TEXT_SIZE)
+                                    .on_input(|input| DetailMessage::FieldUpdated(3, input)),
+                            )
+                            .spacing(20)
+                            .push(
+                                TextInput::new(
+                                    "Pflanzengruppe",
+                                    &self.plant.data.plantGroup.id.to_string(),
+                                )
+                                .size(TEXT_SIZE)
+                                .on_input(|input| DetailMessage::FieldUpdated(4, input)),
+                            )
+                            .spacing(20)
+                            .push(
+                                TextInput::new("Pflegehinweise", &self.additionalCareTips)
+                                    .size(TEXT_SIZE)
+                                    .on_input(|input| DetailMessage::FieldUpdated(5, input)),
+                            )
+                            .spacing(20),
+                    )
+                    .foot(
+                        Row::new()
+                            .spacing(10)
+                            .padding(5)
                             .width(Length::Fill)
-                            .on_press(DetailMessage::OkButtonPressed),
-                        ),
-                )
-                .max_width(300.0)
-                .on_close(DetailMessage::CloseModal)
-                .into()
-            })
-            .backdrop(DetailMessage::CloseModal)
-            .on_esc(DetailMessage::CloseModal)
-            .into();
-            content.map(Message::Detail)
+                            .push(
+                                Button::new(
+                                    Text::new("Löschen")
+                                        .size(TEXT_SIZE)
+                                        .horizontal_alignment(Horizontal::Center),
+                                )
+                                .style(theme::Button::Destructive)
+                                .width(Length::Fill)
+                                .on_press(DetailMessage::Delete),
+                            )
+                            .push(
+                                Button::new(
+                                    Text::new("Ok")
+                                        .size(TEXT_SIZE)
+                                        .horizontal_alignment(Horizontal::Center),
+                                )
+                                .width(Length::Fill)
+                                .on_press(DetailMessage::OkButtonPressed),
+                            ),
+                    )
+                    .max_width(300.0)
+                    .on_close(DetailMessage::CloseModal)
+                    .into()
+                })
+                .backdrop(DetailMessage::CloseModal)
+                .on_esc(DetailMessage::CloseModal)
+                .into();
+                content.map(Message::Detail)
+            } else {
+                let container: Container<DetailMessage> =
+                    Container::new(Text::new("Neue Gruppe").size(TEXT_SIZE))
+                        .width(Length::Fill)
+                        .height(Length::Fill)
+                        .align_x(Horizontal::Center)
+                        .align_y(Vertical::Center);
+                let content: Element<'_, DetailMessage> = Modal::new(self.modal, container, || {
+                    Card::new(
+                        Text::new("Gruppe bearbeiten")
+                            .size(TEXT_SIZE)
+                            .horizontal_alignment(Horizontal::Center),
+                        Column::new()
+                            .push(
+                                TextInput::new("Gruppennamen", &self.plant.data.plantGroup.name)
+                                    .size(TEXT_SIZE)
+                                    .on_input(|input| DetailMessage::FieldUpdated(6, input)),
+                            )
+                            .spacing(20)
+                            .push(
+                                TextInput::new(
+                                    "Beschreibung der Gruppe",
+                                    &self.plant.data.plantGroup.description,
+                                )
+                                .size(TEXT_SIZE)
+                                .on_input(|input| DetailMessage::FieldUpdated(7, input)),
+                            )
+                            .spacing(20)
+                            .push(
+                                TextInput::new("Pflegehinweise", &self.careTips)
+                                    .size(TEXT_SIZE)
+                                    .on_input(|input| DetailMessage::FieldUpdated(8, input)),
+                            )
+                            .spacing(20)
+                            .push(
+                                Text::new("Die Grenzen werden so eingetragen: max;min")
+                                    .size(TEXT_SIZE),
+                            )
+                            .push(
+                                TextInput::new("Feuchtigkeitsgrenzwerte", &self.sensor_border[0])
+                                    .size(TEXT_SIZE)
+                                    .on_input(|input| DetailMessage::FieldUpdated(9, input)),
+                            )
+                            .push(
+                                TextInput::new(
+                                    "Luftfeuchtigkeitsgrenzwerte",
+                                    &self.sensor_border[1],
+                                )
+                                .size(TEXT_SIZE)
+                                .on_input(|input| DetailMessage::FieldUpdated(10, input)),
+                            )
+                            .push(
+                                TextInput::new("Temperaturgrenzwerte", &self.sensor_border[2])
+                                    .size(TEXT_SIZE)
+                                    .on_input(|input| DetailMessage::FieldUpdated(11, input)),
+                            ),
+                    )
+                    .foot(
+                        Row::new()
+                            .spacing(10)
+                            .padding(5)
+                            .width(Length::Fill)
+                            .push(
+                                Button::new(
+                                    Text::new("Löschen")
+                                        .size(TEXT_SIZE)
+                                        .horizontal_alignment(Horizontal::Center),
+                                )
+                                .style(theme::Button::Destructive)
+                                .width(Length::Fill)
+                                .on_press(DetailMessage::Delete),
+                            )
+                            .push(
+                                Button::new(
+                                    Text::new("Ok")
+                                        .size(TEXT_SIZE)
+                                        .horizontal_alignment(Horizontal::Center),
+                                )
+                                .width(Length::Fill)
+                                .on_press(DetailMessage::OkButtonPressed),
+                            ),
+                    )
+                    .max_width(300.0)
+                    .on_close(DetailMessage::CloseModal)
+                    .into()
+                })
+                .backdrop(DetailMessage::CloseModal)
+                .on_esc(DetailMessage::CloseModal)
+                .into();
+                content.map(Message::Detail)
+            }
         } else {
             let row = if self.message != DetailMessage::Pending {
                 let plant = &self.plant;
@@ -410,7 +574,12 @@ impl Tab for DetailPage {
                     .spacing(20)
                     .push(
                         Button::new(Text::new("Pflanze bearbeiten").size(TEXT_SIZE))
-                            .on_press(DetailMessage::OpenModal),
+                            .on_press(DetailMessage::OpenModalPlant),
+                    )
+                    .spacing(20)
+                    .push(
+                        Button::new(Text::new("Gruppe bearbeiten").size(TEXT_SIZE))
+                            .on_press(DetailMessage::OpenModalGroup),
                     );
                 let chart_col = Column::new().push(row).push(container);
                 let row = Row::new()

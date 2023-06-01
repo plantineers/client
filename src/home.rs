@@ -175,7 +175,7 @@ impl HomePage {
                             .unwrap();
                     }
                     self.show_modal = false;
-                    let _ = create_group(self.new_group.clone());
+                    let _ = create_group(self.new_group.clone(), None);
                 }
             }
         }

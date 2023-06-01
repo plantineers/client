@@ -180,7 +180,7 @@ pub async fn create_plant(
         response
     } else {
         let response = client
-            .put(&format!("{}plant/{}", ENDPOINT, plant_group_id))
+            .put(&format!("{}plant/{}", ENDPOINT, plant_id.unwrap()))
             .header("Authorization", "Basic YWRtaW46MTIzNA==")
             .json(&json)
             .send()
@@ -225,18 +225,51 @@ pub async fn delete_plant(plant_id: String) -> Result<(), reqwest::Error> {
     }
 }
 #[tokio::main(flavor = "current_thread")]
-pub async fn create_group(new_group: PlantGroupMetadata) -> Result<(), reqwest::Error> {
+pub async fn delete_group(group_id: String) -> Result<(), reqwest::Error> {
+    let client = Client::new();
+    let response = client
+        .delete(&format!("{}plant-group/{}", ENDPOINT, group_id))
+        .header("Authorization", "Basic YWRtaW46MTIzNA==")
+        .send()
+        .await?;
+    let result = response.error_for_status_ref().map(|_| ());
+
+    match result {
+        Ok(_) => {
+            info!("Successfully deleted group");
+            Ok(())
+        }
+        Err(e) => {
+            info!("No Group deleted");
+            Err(e)
+        }
+    }
+}
+#[tokio::main(flavor = "current_thread")]
+pub async fn create_group(
+    new_group: PlantGroupMetadata,
+    group_id: Option<String>,
+) -> Result<(), reqwest::Error> {
     let mut json = serde_json::to_value(new_group.clone()).unwrap();
     for (i, sensor) in enumerate(new_group.sensorRanges.iter()) {
         json["sensorRanges"][i]["sensor"] = json!(sensor.sensorType.name);
     }
-    let client = reqwest::Client::new();
-    let response = client
-        .post(&format!("{}plant-group", ENDPOINT))
-        .header("Authorization", "Basic YWRtaW46MTIzNA==")
-        .json(&json)
-        .send()
-        .await?;
+    let client = Client::new();
+    let response = if group_id.is_none() {
+        client
+            .post(&format!("{}plant-group", ENDPOINT))
+            .header("Authorization", "Basic YWRtaW46MTIzNA==")
+            .json(&json)
+            .send()
+            .await?
+    } else {
+        client
+            .put(&format!("{}plant-group/{}", ENDPOINT, group_id.unwrap()))
+            .header("Authorization", "Basic YWRtaW46MTIzNA==")
+            .json(&json)
+            .send()
+            .await?
+    };
     let result = response.error_for_status_ref().map(|_| ());
 
     match result {
