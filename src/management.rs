@@ -1,25 +1,20 @@
-use crate::{Icon, Message, Plantbuddy, Tab, API_CLIENT};
+use crate::{Icon, Message, Tab, API_CLIENT};
 
-use iced::widget::vertical_slider::draw;
-use iced::widget::{button, container, row, scrollable, Rule};
-use iced::Alignment::{Center, End};
+use iced::widget::{scrollable, Rule};
+use iced::Alignment::Center;
 
 use crate::login::PlantBuddyRole;
 use crate::requests::{
     create_user, delete_user, update_user, ApiClient, RequestResult, TempCreationUser,
 };
-use iced::widget::slider::update;
+use iced::Command;
 use iced::{
     alignment::{Horizontal, Vertical},
     widget::{radio, Button, Column, Container, Row, Text, TextInput},
-    Alignment, Color, Element, Length,
+    Color, Element, Length,
 };
-use iced::{Application, Command, Sandbox};
 use iced_aw::TabLabel;
-use plotters::coord::types::RangedCoordf32;
-use plotters::prelude::*;
-use plotters_iced::{Chart, ChartBuilder, ChartWidget, DrawingBackend};
-use rand::random;
+
 use serde::Deserialize;
 
 ///This enum represents the various states or actions related to user `management`. process
@@ -115,20 +110,20 @@ impl ManagementTab {
                         self.error_message = String::from("Nutzername oder Passwort ist leer");
                         return Command::none();
                     }
-                    create_user_pressed(self.clone(), username.clone(), password.clone())
+                    create_user_pressed(self.clone(), username, password)
                 } else {
                     // Editing mode
                     if self.username_input.is_empty() || self.password_input.is_empty() {
                         self.error_message = String::from("Nutzername oder Passwort ist leer");
                         return Command::none();
                     }
-                    edit_user_pressed(self.clone(), username.clone(), password.clone())
+                    edit_user_pressed(self.clone(), username, password)
                 };
             }
             ManagementMessage::DeleteUserPressed(id) => {
                 self.error_message = String::new();
                 self.notify_message = String::new();
-                return delete_user_pressed(id.clone(), username.clone(), password.clone());
+                return delete_user_pressed(id, username, password);
             }
             ManagementMessage::RoleChanged(role) => {
                 self.error_message = String::new();
@@ -140,9 +135,9 @@ impl ManagementTab {
                 self.notify_message = String::new();
                 self.editing_user = Some(user.clone());
 
-                self.role_input = user.role.clone();
+                self.role_input = user.role;
                 self.username_input = user.name.clone();
-                self.password_input = user.password.clone();
+                self.password_input = user.password;
             }
             ManagementMessage::GetUsersPressed => {
                 self.error_message = String::new();
@@ -158,7 +153,7 @@ impl ManagementTab {
                     return self.update(ManagementMessage::GetUsersPressed);
                 }
                 Err(e) => {
-                    self.error_message = e.to_string();
+                    self.error_message = e;
                 }
             },
             ManagementMessage::UserDeleted(result) => match result {
@@ -167,7 +162,7 @@ impl ManagementTab {
                     return self.update(ManagementMessage::GetUsersPressed);
                 }
                 Err(e) => {
-                    self.error_message = e.to_string();
+                    self.error_message = e;
                 }
             },
             ManagementMessage::UsersReceived(result) => match result {
@@ -175,7 +170,7 @@ impl ManagementTab {
                     self.users = users;
                 }
                 Err(e) => {
-                    self.error_message = e.to_string();
+                    self.error_message = e;
                 }
             },
             ManagementMessage::UserEdited(result) => match result {
@@ -187,7 +182,7 @@ impl ManagementTab {
                     return self.update(ManagementMessage::GetUsersPressed);
                 }
                 Err(e) => {
-                    self.error_message = e.to_string();
+                    self.error_message = e;
                 }
             },
         }
@@ -236,7 +231,7 @@ impl Tab for ManagementTab {
                         .on_press(ManagementMessage::GetUsersPressed)
                         .style(iced::theme::Button::Primary),
                 )
-                .width(Length::from(Length::Fill))
+                .width(Length::Fill)
                 .align_x(Horizontal::Center),
             )
             .push(
@@ -245,7 +240,7 @@ impl Tab for ManagementTab {
                         .style(Color::from_rgb(0.0, 1.0, 0.0))
                         .size(30),
                 )
-                .width(Length::from(Length::Fill))
+                .width(Length::Fill)
                 .align_x(Horizontal::Center),
             );
 
@@ -287,7 +282,7 @@ impl Tab for ManagementTab {
                         .width(Length::FillPortion(1)),
                 ),
         );
-        for (i, user) in self.users.iter().enumerate() {
+        for user in self.users.iter() {
             let row = Row::new()
                 .height(Length::from(50))
                 .spacing(20)
@@ -446,7 +441,7 @@ fn create_user_pressed(
     let user_to_create = TempCreationUser {
         name: plantbuddy.username_input.clone(),
         password: plantbuddy.password_input.clone(),
-        role: plantbuddy.role_input.clone().into(),
+        role: plantbuddy.role_input.into(),
     };
 
     Command::perform(
@@ -490,14 +485,14 @@ fn edit_user_pressed(
     let user_to_edit = TempCreationUser {
         name: plantbuddy.username_input.clone(),
         password: plantbuddy.password_input.clone(),
-        role: plantbuddy.role_input.clone().into(),
+        role: plantbuddy.role_input.into(),
     };
 
     Command::perform(
         update_user(
             username,
             password,
-            plantbuddy.editing_user.clone().unwrap().id,
+            plantbuddy.editing_user.unwrap().id,
             user_to_edit,
         ),
         ManagementMessage::UserEdited,

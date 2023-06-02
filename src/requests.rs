@@ -150,8 +150,8 @@ impl ApiClient {
     ) -> Result<(), reqwest::Error> {
         let client = self.client.lock().await;
         let mut json = serde_json::to_value(new_plant).unwrap();
+        info!("Creating plant with json: {:?}", json);
         json["plantGroupId"] = json!(plant_group_id);
-        info!("{:?}", json);
         let client = Client::new();
         let response = if plant_id.is_none() {
             let response = client
@@ -229,6 +229,8 @@ impl ApiClient {
         group_id: Option<String>,
     ) -> Result<(), reqwest::Error> {
         let mut json = serde_json::to_value(new_group.clone()).unwrap();
+        info!("Creating group with json: {:?}", json);
+
         for (i, sensor) in enumerate(new_group.sensorRanges.iter()) {
             json["sensorRanges"][i]["sensor"] = json!(sensor.sensorType.name);
         }

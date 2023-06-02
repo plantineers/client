@@ -1,21 +1,18 @@
-use iced::futures::executor::block_on;
-use iced::futures::TryStreamExt;
-use iced::theme::{self, Theme};
-use iced::widget::{container, Image};
+use iced::theme::{self};
+use iced::widget::Image;
 use iced::Alignment::Center;
 use iced::{
     alignment::{Horizontal, Vertical},
     widget::{Button, Column, Container, Row, Text, TextInput},
-    Alignment, Application, Color, Command, Element, Length,
+    Color, Command, Element, Length,
 };
-use iced::{application, color};
 use iced_aw::tab_bar::TabLabel;
-use log::{info, log};
-use serde::{Deserialize, Serialize};
+use log::info;
+use serde::Deserialize;
 use std::{env, fmt};
 
-use crate::requests::{login, ApiClient, RequestResult, TempCreationUser};
-use crate::{Icon, Message, Tab, API_CLIENT};
+use crate::requests::{login, RequestResult, TempCreationUser};
+use crate::{Icon, Message, Tab};
 
 /// Represents a message that can be sent to the `LoginTab` to update its state.
 #[derive(Debug, Clone)]
@@ -181,7 +178,7 @@ impl Tab for LoginTab {
 
         let content: Element<'_, LoginMessage> = Container::new(
             Column::new()
-                .align_items(Alignment::Center)
+                .align_items(Center)
                 .height(Length::Fill)
                 .max_width(600)
                 .padding(20)
@@ -330,7 +327,7 @@ mod tests {
         let mut login_tab = LoginTab::new();
         login_tab.username = "test".to_string();
         login_tab.password = "test".to_string();
-        let message = LoginMessage::Login(RequestResult::Err("test".to_string()));
+        let message = LoginMessage::Login(Err("test".to_string()));
         let command = login_tab.update(message);
         assert_eq!(login_tab.login_failed, true);
         assert_eq!(login_tab.last_error_massage, "Server-Fehler");
