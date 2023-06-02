@@ -163,17 +163,29 @@ pub async fn login(username: String, password: String) -> RequestResult<TempCrea
 pub async fn create_plant(
     new_plant: PlantMetadata,
     plant_group_id: i32,
+    plant_id: Option<String>,
 ) -> Result<(), reqwest::Error> {
     let mut json = serde_json::to_value(new_plant).unwrap();
     json["plantGroupId"] = json!(plant_group_id);
-    info!("{}", json);
-    let client = reqwest::Client::new();
-    let response = client
-        .post(&format!("{}plant", ENDPOINT))
-        .header("Authorization", "Basic YWRtaW46MTIzNA==")
-        .json(&json)
-        .send()
-        .await?;
+    info!("{:?}", json);
+    let client = Client::new();
+    let response = if plant_id.is_none() {
+        let response = client
+            .post(&format!("{}plant", ENDPOINT))
+            .header("Authorization", "Basic YWRtaW46MTIzNA==")
+            .json(&json)
+            .send()
+            .await?;
+        response
+    } else {
+        let response = client
+            .put(&format!("{}plant/{}", ENDPOINT, plant_id.unwrap()))
+            .header("Authorization", "Basic YWRtaW46MTIzNA==")
+            .json(&json)
+            .send()
+            .await?;
+        response
+    };
     let result = response.error_for_status_ref().map(|_| ());
 
     match result {
@@ -190,19 +202,73 @@ pub async fn create_plant(
 
     Ok(())
 }
-pub async fn create_group(new_group: PlantGroupMetadata) -> Result<(), reqwest::Error> {
+
+pub async fn delete_plant(plant_id: String) -> Result<(), reqwest::Error> {
+    let client = reqwest::Client::new();
+    let response = client
+        .delete(&format!("{}plant/{}", ENDPOINT, plant_id))
+        .header("Authorization", "Basic YWRtaW46MTIzNA==")
+        .send()
+        .await?;
+    let result = response.error_for_status_ref().map(|_| ());
+
+    match result {
+        Ok(_) => {
+            info!("Successfully deleted plant");
+            Ok(())
+        }
+        Err(e) => {
+            info!("No Plant deleted");
+            Err(e)
+        }
+    }
+}
+#[tokio::main(flavor = "current_thread")]
+pub async fn delete_group(group_id: String) -> Result<(), reqwest::Error> {
+    let client = Client::new();
+    let response = client
+        .delete(&format!("{}plant-group/{}", ENDPOINT, group_id))
+        .header("Authorization", "Basic YWRtaW46MTIzNA==")
+        .send()
+        .await?;
+    let result = response.error_for_status_ref().map(|_| ());
+
+    match result {
+        Ok(_) => {
+            info!("Successfully deleted group");
+            Ok(())
+        }
+        Err(e) => {
+            info!("No Group deleted");
+            Err(e)
+        }
+    }
+}
+#[tokio::main(flavor = "current_thread")]
+pub async fn create_group(
+    new_group: PlantGroupMetadata,
+    group_id: Option<String>,
+) -> Result<(), reqwest::Error> {
     let mut json = serde_json::to_value(new_group.clone()).unwrap();
     for (i, sensor) in enumerate(new_group.sensorRanges.iter()) {
         json["sensorRanges"][i]["sensor"] = json!(sensor.sensorType.name);
     }
-    info!("{}", json);
-    let client = reqwest::Client::new();
-    let response = client
-        .post(&format!("{}plant-group", ENDPOINT))
-        .header("Authorization", "Basic YWRtaW46MTIzNA==")
-        .json(&json)
-        .send()
-        .await?;
+    let client = Client::new();
+    let response = if group_id.is_none() {
+        client
+            .post(&format!("{}plant-group", ENDPOINT))
+            .header("Authorization", "Basic YWRtaW46MTIzNA==")
+            .json(&json)
+            .send()
+            .await?
+    } else {
+        client
+            .put(&format!("{}plant-group/{}", ENDPOINT, group_id.unwrap()))
+            .header("Authorization", "Basic YWRtaW46MTIzNA==")
+            .json(&json)
+            .send()
+            .await?
+    };
     let result = response.error_for_status_ref().map(|_| ());
 
     match result {
@@ -220,21 +286,45 @@ pub async fn create_group(new_group: PlantGroupMetadata) -> Result<(), reqwest::
     Ok(())
 }
 #[tokio::main(flavor = "current_thread")]
-pub async fn get_all_plant_ids() -> Result<Vec<String>, reqwest::Error> {
+pub async fn get_all_plant_ids_names() -> Result<Vec<(String, String)>, reqwest::Error> {
     let client = reqwest::Client::new();
     let response = client
-        .get(ENDPOINT.to_string() + "plants")
+        .get(ENDPOINT.to_string() + "plants/overview")
         .header("Authorization", "Basic YWRtaW46MTIzNA==")
         .send()
         .await?;
     let text = response.text().await?;
-    info!("{:?}", text);
-    let mut ids: Vec<String> = vec![];
+    let mut ids: Vec<(String, String)> = vec![];
     if text != "{\"plants\":null}" {
         let value: Value = serde_json::from_str(&text).unwrap();
         let data = value.get("plants").unwrap();
-        data.as_array().unwrap().iter().for_each(|x| {
-            ids.push(x.to_string());
+        data.as_array().unwrap().iter().for_each(|plant| {
+            ids.push((
+                plant.get("id").unwrap().to_string(),
+                plant.get("name").unwrap().to_string(),
+            ));
+        });
+    }
+    Ok(ids)
+}
+#[tokio::main(flavor = "current_thread")]
+pub async fn get_all_group_ids_names() -> Result<Vec<(String, String)>, reqwest::Error> {
+    let client = reqwest::Client::new();
+    let response = client
+        .get(ENDPOINT.to_string() + "plant-groups/overview")
+        .header("Authorization", "Basic YWRtaW46MTIzNA==")
+        .send()
+        .await?;
+    let text = response.text().await?;
+    let mut ids: Vec<(String, String)> = vec![];
+    if text != "{\"plantGroups\":null}" {
+        let value: Value = serde_json::from_str(&text).unwrap();
+        let data = value.get("plantGroups").unwrap();
+        data.as_array().unwrap().iter().for_each(|plant| {
+            ids.push((
+                plant.get("id").unwrap().to_string(),
+                plant.get("name").unwrap().to_string(),
+            ));
         });
     }
     Ok(ids)
@@ -252,6 +342,8 @@ pub struct PlantMetadata {
 
 #[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct PlantGroupMetadata {
+    #[serde(skip_serializing)]
+    pub id: i32,
     pub name: String,
     pub description: String,
     pub careTips: Vec<String>,
@@ -260,9 +352,11 @@ pub struct PlantGroupMetadata {
 impl Default for PlantGroupMetadata {
     fn default() -> Self {
         PlantGroupMetadata {
+            id: 0,
             name: String::new(),
             description: String::new(),
             careTips: vec![],
+            //TODO: Curse you hardcoded values
             sensorRanges: vec![
                 SensorRange {
                     sensorType: SensorType {
@@ -322,7 +416,7 @@ pub async fn get_plant_details(
     Ok((details, plant_group))
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct GraphData {
     pub values: Vec<i32>,
     pub timestamps: Vec<String>,
@@ -330,7 +424,6 @@ pub struct GraphData {
 #[tokio::main(flavor = "current_thread")]
 pub async fn get_graphs(
     plant_ids: Vec<String>,
-    // FIXME: This should use the enum, implementing the display trait which automatically converts to the string
     sensor_type: String,
 ) -> RequestResult<Vec<GraphData>> {
     let client = reqwest::Client::new();

@@ -28,14 +28,12 @@ pub enum LoginMessage {
 }
 
 /// Represents the role of a user in the PlantBuddy application.
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Deserialize)]
 pub enum PlantBuddyRole {
     Admin,
     User,
-    #[default]
     NotLoggedIn,
 }
-
 /// This impl provides a conversion from `PlantBuddyRole` to `u64`.
 impl Into<u64> for PlantBuddyRole {
     fn into(self) -> u64 {
