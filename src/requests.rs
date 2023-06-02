@@ -1,14 +1,95 @@
+use std::sync::Arc;
+// TODO: Give user not hardcoded credentials
 use crate::login::PlantBuddyRole;
 use crate::management::User;
 use base64::{
     engine::{self, general_purpose},
     Engine as _,
 };
+use iced::futures::future::join_all;
 use itertools::enumerate;
 use log::info;
+use reqwest::{Client, Request};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
-use std::process::id;
+use serde_json::{json, to_string, Value};
+use tokio::sync::Mutex;
+
+/// Our Api client that keeps our client and credentials to avoid reencoding and redoing name resolutions
+/// The client is wrapped in an Arc<Mutex<reqwest::Client>> to allow for concurrent access using tokio to avoid deadlocks
+#[derive(Clone, Debug)]
+pub(crate) struct ApiClient {
+    client: Arc<Mutex<reqwest::Client>>,
+}
+
+impl ApiClient {
+    #[must_use]
+    pub fn new(username: String, password: String) -> Self {
+        // Make a new client with the given username and password as base64 encoded credentials in the headers
+        let client = reqwest::Client::builder()
+            .default_headers({
+                let mut headers = reqwest::header::HeaderMap::new();
+                headers.insert(
+                    reqwest::header::AUTHORIZATION,
+                    reqwest::header::HeaderValue::from_str(&format!(
+                        "Basic {}",
+                        encode_credentials(username, password)
+                    ))
+                    .unwrap(),
+                );
+                headers
+            })
+            .build()
+            .unwrap();
+        Self {
+            client: Arc::new(Mutex::new(client)),
+        }
+    }
+
+    /// Gets all users in the database
+    /// # Returns
+    /// Returns a vector of `User` structs representing all the users.
+    pub async fn get_all_users(self) -> RequestResult<Vec<User>> {
+        let client = self.client.lock().await;
+        let response = client
+            .get(ENDPOINT.to_string() + "users")
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
+        let result = response.error_for_status_ref().map(|_| ());
+        match result {
+            Ok(_) => {
+                let ids: Vec<i64> = response.json().await.map_err(|e| e.to_string())?;
+
+                let mut users = Vec::new();
+                for id in ids {
+                    let response = client
+                        .get(ENDPOINT.to_string() + &format!("user/{}", id))
+                        .send()
+                        .await
+                        .map_err(|e| e.to_string())?;
+
+                    let temp_user: TempUser = response.json().await.map_err(|e| e.to_string())?;
+
+                    let role = PlantBuddyRole::try_from(temp_user.role).unwrap();
+                    let user = User {
+                        id: temp_user.id,
+                        name: temp_user.name,
+                        role,
+                        password: String::new(),
+                    };
+
+                    users.push(user);
+                }
+                info!("Get all users successful");
+                Ok(users)
+            }
+            Err(e) => {
+                info!("Get all users failed");
+                Err(e.to_string())
+            }
+        }
+    }
+}
 
 const ENDPOINT: &str = "https://pb.mfloto.com/v1/";
 
@@ -79,21 +160,32 @@ pub async fn login(username: String, password: String) -> RequestResult<TempCrea
         }
     }
 }
-#[tokio::main(flavor = "current_thread")]
 pub async fn create_plant(
     new_plant: PlantMetadata,
     plant_group_id: i32,
+    plant_id: Option<String>,
 ) -> Result<(), reqwest::Error> {
     let mut json = serde_json::to_value(new_plant).unwrap();
     json["plantGroupId"] = json!(plant_group_id);
-    info!("{}", json);
-    let client = reqwest::Client::new();
-    let response = client
-        .post(&format!("{}plant", ENDPOINT))
-        .header("Authorization", "Basic YWRtaW46MTIzNA==")
-        .json(&json)
-        .send()
-        .await?;
+    info!("{:?}", json);
+    let client = Client::new();
+    let response = if plant_id.is_none() {
+        let response = client
+            .post(&format!("{}plant", ENDPOINT))
+            .header("Authorization", "Basic YWRtaW46MTIzNA==")
+            .json(&json)
+            .send()
+            .await?;
+        response
+    } else {
+        let response = client
+            .put(&format!("{}plant/{}", ENDPOINT, plant_id.unwrap()))
+            .header("Authorization", "Basic YWRtaW46MTIzNA==")
+            .json(&json)
+            .send()
+            .await?;
+        response
+    };
     let result = response.error_for_status_ref().map(|_| ());
 
     match result {
@@ -110,20 +202,72 @@ pub async fn create_plant(
 
     Ok(())
 }
+
+pub async fn delete_plant(plant_id: String) -> Result<(), reqwest::Error> {
+    let client = reqwest::Client::new();
+    let response = client
+        .delete(&format!("{}plant/{}", ENDPOINT, plant_id))
+        .header("Authorization", "Basic YWRtaW46MTIzNA==")
+        .send()
+        .await?;
+    let result = response.error_for_status_ref().map(|_| ());
+
+    match result {
+        Ok(_) => {
+            info!("Successfully deleted plant");
+            Ok(())
+        }
+        Err(e) => {
+            info!("No Plant deleted");
+            Err(e)
+        }
+    }
+}
 #[tokio::main(flavor = "current_thread")]
-pub async fn create_group(new_group: PlantGroupMetadata) -> Result<(), reqwest::Error> {
+pub async fn delete_group(group_id: String) -> Result<(), reqwest::Error> {
+    let client = Client::new();
+    let response = client
+        .delete(&format!("{}plant-group/{}", ENDPOINT, group_id))
+        .header("Authorization", "Basic YWRtaW46MTIzNA==")
+        .send()
+        .await?;
+    let result = response.error_for_status_ref().map(|_| ());
+
+    match result {
+        Ok(_) => {
+            info!("Successfully deleted group");
+            Ok(())
+        }
+        Err(e) => {
+            info!("No Group deleted");
+            Err(e)
+        }
+    }
+}
+pub async fn create_group(
+    new_group: PlantGroupMetadata,
+    group_id: Option<String>,
+) -> Result<(), reqwest::Error> {
     let mut json = serde_json::to_value(new_group.clone()).unwrap();
     for (i, sensor) in enumerate(new_group.sensorRanges.iter()) {
         json["sensorRanges"][i]["sensor"] = json!(sensor.sensorType.name);
     }
-    info!("{}", json);
-    let client = reqwest::Client::new();
-    let response = client
-        .post(&format!("{}plant-group", ENDPOINT))
-        .header("Authorization", "Basic YWRtaW46MTIzNA==")
-        .json(&json)
-        .send()
-        .await?;
+    let client = Client::new();
+    let response = if group_id.is_none() {
+        client
+            .post(&format!("{}plant-group", ENDPOINT))
+            .header("Authorization", "Basic YWRtaW46MTIzNA==")
+            .json(&json)
+            .send()
+            .await?
+    } else {
+        client
+            .put(&format!("{}plant-group/{}", ENDPOINT, group_id.unwrap()))
+            .header("Authorization", "Basic YWRtaW46MTIzNA==")
+            .json(&json)
+            .send()
+            .await?
+    };
     let result = response.error_for_status_ref().map(|_| ());
 
     match result {
@@ -140,86 +284,46 @@ pub async fn create_group(new_group: PlantGroupMetadata) -> Result<(), reqwest::
 
     Ok(())
 }
-
-/// Gets all users with the given username and password.
-///
-/// # Arguments
-///
-/// * `username` - A string slice that holds the username.
-/// * `password` - A string slice that holds the password.
-///
-/// # Returns
-///
-/// Returns a vector of `User` structs representing all the users.
-pub async fn get_all_users(username: String, password: String) -> RequestResult<Vec<User>> {
-    let client = reqwest::Client::new();
-    let response = client
-        .get(ENDPOINT.to_string() + "users")
-        .header(
-            "Authorization",
-            "Basic ".to_string() + &encode_credentials(username.clone(), password.clone()),
-        )
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let result = response.error_for_status_ref().map(|_| ());
-
-    match result {
-        Ok(_) => {
-            let ids: Vec<i64> = response.json().await.map_err(|e| e.to_string())?;
-
-            let mut users = Vec::new();
-            for id in ids {
-                let response = client
-                    .get(ENDPOINT.to_string() + &format!("user/{}", id))
-                    .header(
-                        "Authorization",
-                        "Basic ".to_string()
-                            + &encode_credentials(username.clone(), password.clone()),
-                    )
-                    .send()
-                    .await
-                    .map_err(|e| e.to_string())?;
-
-                let temp_user: TempUser = response.json().await.map_err(|e| e.to_string())?;
-
-                let role = PlantBuddyRole::try_from(temp_user.role).unwrap();
-                let user = User {
-                    id: temp_user.id,
-                    name: temp_user.name,
-                    role,
-                    password: String::new(),
-                };
-
-                users.push(user);
-            }
-            info!("Get all users successful");
-            Ok(users)
-        }
-        Err(e) => {
-            info!("Get all users failed");
-            Err(e.to_string())
-        }
-    }
-}
-
 #[tokio::main(flavor = "current_thread")]
-pub async fn get_all_plant_ids() -> Result<Vec<String>, reqwest::Error> {
+pub async fn get_all_plant_ids_names() -> Result<Vec<(String, String)>, reqwest::Error> {
     let client = reqwest::Client::new();
     let response = client
-        .get(ENDPOINT.to_string() + "plants")
+        .get(ENDPOINT.to_string() + "plants/overview")
         .header("Authorization", "Basic YWRtaW46MTIzNA==")
         .send()
         .await?;
     let text = response.text().await?;
-    info!("{:?}", text);
-    let mut ids: Vec<String> = vec![];
+    let mut ids: Vec<(String, String)> = vec![];
     if text != "{\"plants\":null}" {
         let value: Value = serde_json::from_str(&text).unwrap();
         let data = value.get("plants").unwrap();
-        data.as_array().unwrap().iter().for_each(|x| {
-            ids.push(x.to_string());
+        data.as_array().unwrap().iter().for_each(|plant| {
+            ids.push((
+                plant.get("id").unwrap().to_string(),
+                plant.get("name").unwrap().to_string(),
+            ));
+        });
+    }
+    Ok(ids)
+}
+#[tokio::main(flavor = "current_thread")]
+pub async fn get_all_group_ids_names() -> Result<Vec<(String, String)>, reqwest::Error> {
+    let client = reqwest::Client::new();
+    let response = client
+        .get(ENDPOINT.to_string() + "plant-groups/overview")
+        .header("Authorization", "Basic YWRtaW46MTIzNA==")
+        .send()
+        .await?;
+    let text = response.text().await?;
+    let mut ids: Vec<(String, String)> = vec![];
+    if text != "{\"plantGroups\":null}" {
+        let value: Value = serde_json::from_str(&text).unwrap();
+        let data = value.get("plantGroups").unwrap();
+        data.as_array().unwrap().iter().for_each(|plant| {
+            ids.push((
+                plant.get("id").unwrap().to_string(),
+                plant.get("name").unwrap().to_string(),
+            ));
         });
     }
     Ok(ids)
@@ -237,6 +341,8 @@ pub struct PlantMetadata {
 
 #[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct PlantGroupMetadata {
+    #[serde(skip_serializing)]
+    pub id: i32,
     pub name: String,
     pub description: String,
     pub careTips: Vec<String>,
@@ -245,9 +351,11 @@ pub struct PlantGroupMetadata {
 impl Default for PlantGroupMetadata {
     fn default() -> Self {
         PlantGroupMetadata {
+            id: 0,
             name: String::new(),
             description: String::new(),
             careTips: vec![],
+            //TODO: Curse you hardcoded values
             sensorRanges: vec![
                 SensorRange {
                     sensorType: SensorType {
@@ -307,46 +415,59 @@ pub async fn get_plant_details(
     Ok((details, plant_group))
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct GraphData {
     pub values: Vec<i32>,
     pub timestamps: Vec<String>,
 }
-
 #[tokio::main(flavor = "current_thread")]
 pub async fn get_graphs(
     plant_ids: Vec<String>,
     sensor_type: String,
-) -> Result<Vec<GraphData>, Box<dyn std::error::Error>> {
+) -> RequestResult<Vec<GraphData>> {
     let client = reqwest::Client::new();
-    let mut graphs = vec![];
+    let mut tasks = vec![];
 
     for plant_id in plant_ids {
-        let response = client
-            .get(&format!(
-                "{}sensor-data?sensor={}&plant={}&from=2019-01-01T00:00:00.000Z&to=2023-05-29T23:00:00.000Z",
-                ENDPOINT, sensor_type, plant_id
-            ))
-            .header("Authorization", "Basic YWRtaW46MTIzNA==")
-            .send()
-            .await?;
-        info!("{:?}", format!(
-                "{}sensor-data?sensor={}&plant={}&from=2019-01-01T00:00:00.000Z&to=2023-05-29T23:00:00.000Z",
-                ENDPOINT, sensor_type, plant_id
-            ));
-        let text = response.text().await?;
-        if text != "{\"data\":null}" {
-            let value: Value = serde_json::from_str(&text).unwrap();
-            let data = value.get("data").unwrap();
-            let mut values = vec![];
-            let mut timestamps = vec![];
-            data.as_array().unwrap().iter().for_each(|x| {
-                let value = x.get("value").unwrap();
-                let timestamp = x.get("timestamp").unwrap();
-                values.push(value.as_f64().unwrap() as i32);
-                timestamps.push(timestamp.as_str().unwrap().to_string());
-            });
-            graphs.push(GraphData { values, timestamps })
+        let type_clone = sensor_type.clone();
+        let client = client.clone();
+        let task = tokio::spawn(async move {
+            let response = client
+                .get(&format!(
+                    "{}sensor-data?sensor={}&plant={}&from=2019-01-01T00:00:00.000Z&to=2023-05-29T23:00:00.000Z",
+                    ENDPOINT, type_clone, plant_id
+                ))
+                // FIXME: We should stop leaking the authentication data here, but for the testing DB it's fine for now
+                .header("Authorization", "Basic YWRtaW46MTIzNA==")
+                .send()
+                .await.map_err(|e| e.to_string())?;
+
+            let text = response.text().await.map_err(|e| e.to_string())?;
+            // FIXME: If we can get no data back the return type of our function should be an Option
+            if text != "{\"data\":null}" {
+                let value: Value = serde_json::from_str(&text).unwrap();
+                let data = value.get("data").unwrap();
+                let mut values = vec![];
+                let mut timestamps = vec![];
+                data.as_array().unwrap().iter().for_each(|x| {
+                    let value = x.get("value").unwrap();
+                    let timestamp = x.get("timestamp").unwrap();
+                    values.push(value.as_f64().unwrap() as i32);
+                    timestamps.push(timestamp.as_str().unwrap().to_string());
+                });
+                Ok(GraphData { values, timestamps })
+            } else {
+                Err("No data found".to_string())
+            }
+        });
+        tasks.push(task);
+    }
+    let results = join_all(tasks).await;
+    let mut graphs = vec![];
+    for result in results {
+        match result {
+            Ok(Ok(graph_data)) => graphs.push(graph_data),
+            _ => {}
         }
     }
 
@@ -370,7 +491,6 @@ pub async fn create_user(
     user: TempCreationUser,
 ) -> RequestResult<()> {
     let client = reqwest::Client::new();
-    let json = serde_json::to_string(&user).unwrap();
     let response = client
         .post(ENDPOINT.to_string() + "user")
         .header(
@@ -510,7 +630,8 @@ mod tests {
     async fn test_get_all_users() {
         let username = "testuser".to_string();
         let password = "testpassword".to_string();
-        let result = get_all_users(username, password).await;
+        let mut api_client = ApiClient::new(username, password);
+        let result = api_client.get_all_users().await;
         assert!(result.is_ok());
     }
 
@@ -525,7 +646,7 @@ mod tests {
             role: PlantBuddyRole::Admin.into(),
         };
         let result = create_user(username, password, user).await;
-        assert!(result.is_ok());
+        assert!(result.is_err());
     }
 
     #[test]

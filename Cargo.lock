@@ -103,9 +103,9 @@ checksum = "8da52d66c7071e2e3fa2a1e5c6d088fec47b593032b254f5e980de8ea54454d6"
 
 [[package]]
 name = "ash"
-version = "0.37.3+1.3.251"
+version = "0.37.2+1.3.238"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39e9c3835d686b0a6084ab4234fcd1b07dbf6e4767dce60874b12356a25ecd4a"
+checksum = "28bf19c1f0a470be5fbf7522a308a05df06610252c5bcf5143e1b23f629a9a03"
 dependencies = [
  "libloading",
 ]
@@ -244,9 +244,9 @@ dependencies = [
 
 [[package]]
 name = "chrono"
-version = "0.4.26"
+version = "0.4.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec837a71355b28f6556dbd569b37b3f363091c0bd4b2e735674521b4c5fd9bc5"
+checksum = "fdbc37d37da9e5bce8173f3a41b71d9bf3c674deebbaceacd0ebdabde76efb03"
 dependencies = [
  "android-tzdata",
  "iana-time-zone",
@@ -1102,9 +1102,9 @@ dependencies = [
 
 [[package]]
 name = "glow"
-version = "0.12.2"
+version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "807edf58b70c0b5b2181dd39fe1839dbdb3ba02645630dc5f753e23da307f762"
+checksum = "4e007a07a24de5ecae94160f141029e9a347282cfe25d1d58d85d845cf3130f1"
 dependencies = [
  "js-sys",
  "slotmap",
@@ -2012,9 +2012,9 @@ dependencies = [
 
 [[package]]
 name = "mio"
-version = "0.8.8"
+version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "927a765cd3fc26206e66b296465fa9d3e5ab003e651c1b3c060e7956d96b19d2"
+checksum = "eebffdb73fe72e917997fad08bdbf31ac50b0fa91cec93e69a0662e4264d454c"
 dependencies = [
  "libc",
  "log",
@@ -2315,15 +2315,15 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.17.2"
+version = "1.17.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9670a07f94779e00908f3e686eab508878ebb390ba6e604d3a284c00e8d0487b"
+checksum = "b7e5500299e16ebb147ae15a00a942af264cf3688f47923b8fc2cd5858f23ad3"
 
 [[package]]
 name = "openssl"
-version = "0.10.53"
+version = "0.10.52"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12df40a956736488b7b44fe79fe12d4f245bb5b3f5a1f6095e499760015be392"
+checksum = "01b8574602df80f7b85fdfc5392fa884a4e3b3f4f35402c070ab34c3d3f78d56"
 dependencies = [
  "bitflags",
  "cfg-if",
@@ -2353,9 +2353,9 @@ checksum = "ff011a302c396a5197692431fc1948019154afc178baf7d8e37367442a4601cf"
 
 [[package]]
 name = "openssl-sys"
-version = "0.9.88"
+version = "0.9.87"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c2ce0f250f34a308dcfdbb351f511359857d4ed2134ba715a4eadd46e1ffd617"
+checksum = "8e17f59264b2809d77ae94f0e1ebabc434773f370d6ca667bd223ea10e06cc7e"
 dependencies = [
  "cc",
  "libc",
@@ -3846,7 +3846,7 @@ dependencies = [
  "d3d12",
  "foreign-types 0.3.2",
  "fxhash",
- "glow 0.12.2",
+ "glow 0.12.1",
  "gpu-alloc",
  "gpu-allocator",
  "gpu-descriptor",
