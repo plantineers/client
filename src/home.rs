@@ -7,6 +7,7 @@ use crate::requests::{
 use crate::Message::Home;
 use crate::{Icon, Message, MyStylesheet, Tab, TEXT_SIZE};
 use iced::alignment::{Horizontal, Vertical};
+use iced::futures::TryFutureExt;
 use iced::widget::{Button, Column, Container, Row, Text, TextInput};
 use iced::{theme, Command, Element, Length, Renderer};
 use iced_aw::{Card, Modal, TabLabel};
@@ -75,7 +76,9 @@ impl HomePage {
     pub fn update(&mut self, message: HomeMessage) -> Command<HomeMessage> {
         match message {
             HomeMessage::DeleteGroup => {
-                delete_group(self.selected_group.clone()).unwrap();
+                delete_group(self.selected_group.clone()).unwrap_or_else(|e| {
+                    info!("Error: {}", e);
+                });
             }
             HomeMessage::Plant => (),
             HomeMessage::Refresh => {

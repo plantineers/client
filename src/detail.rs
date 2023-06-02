@@ -6,6 +6,7 @@ use crate::requests::{
 //TODO: Groups shouldnt be deleted here, fix error handling
 use crate::{Icon, Message, MyStylesheet, Tab, TEXT_SIZE};
 use iced::alignment::{Horizontal, Vertical};
+use iced::futures::TryFutureExt;
 use iced::widget::{Button, Column, Container, Row, Text, TextInput};
 use iced::{theme, Command, Element, Length};
 use iced_aw::tab_bar::TabLabel;
@@ -27,8 +28,9 @@ pub struct DetailPlant {
 
 impl DetailPlant {
     pub fn new(id: String, graph_data: Vec<GraphData>) -> Self {
+        // TODO: Fix error handling, Message System
         let plant_data: (PlantMetadata, PlantGroupMetadata) =
-            get_plant_details(id.clone()).unwrap();
+            get_plant_details(id.clone()).unwrap_or_default();
         let charts = PlantCharts::create_charts(
             DetailMessage::Loaded,
             graph_data,
@@ -157,7 +159,7 @@ impl DetailPage {
                 charts.push(PlantChart::new(
                     format!("{:?}_Max_Grenze", self.plant.data.name.clone()),
                     current_chart.x.clone(),
-                    vec![sensor.max; self.plant.charts.charts[0].x.len()],
+                    vec![sensor.max; current_chart.x.len()],
                     BLACK,
                 ));
                 charts.push(PlantChart::new(
@@ -179,18 +181,19 @@ impl DetailPage {
                 return Command::perform(
                     async {
                         // TODO: Error handling here by not unwrapping
-                        delete_plant(plant_id).await.unwrap()
+                        delete_plant(plant_id).await.unwrap_or_else(|_| ());
                     },
                     |_| DetailMessage::DeleteSuccess,
                 );
             }
             DetailMessage::Load => {
-                self.id_names = get_all_plant_ids_names().unwrap();
+                //if empty self.id_names should be an empty vec
+                self.id_names = get_all_plant_ids_names().unwrap_or_default();
                 self.message = DetailMessage::Pending;
             }
             DetailMessage::PlantData(id) => {
                 let graph_data = get_graphs(vec![id.clone()], Sensortypes::Feuchtigkeit.get_name());
-                self.plant = DetailPlant::new(id, graph_data.unwrap());
+                self.plant = DetailPlant::new(id, graph_data.unwrap_or_default());
                 self.plant.data.additionalCareTips.iter().for_each(|x| {
                     self.additionalCareTips.push_str(x);
                     self.additionalCareTips.push(';');
