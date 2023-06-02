@@ -44,6 +44,59 @@ impl ApiClient {
             client: Arc::new(Mutex::new(client)),
         }
     }
+    #[tokio::main(flavor = "current_thread")]
+    pub async fn get_graphs(
+        self,
+        plant_ids: Vec<String>,
+        sensor_type: String,
+    ) -> RequestResult<Vec<GraphData>> {
+        let client = self.client.lock().await;
+        let mut tasks = vec![];
+
+        for plant_id in plant_ids {
+            let type_clone = sensor_type.clone();
+            let client = client.clone();
+            let task = tokio::spawn(async move {
+                let response = client
+                    .get(&format!(
+                        "{}sensor-data?sensor={}&plant={}&from=2019-01-01T00:00:00.000Z&to=2023-05-29T23:00:00.000Z",
+                        ENDPOINT, type_clone, plant_id
+                    ))
+                    // FIXME: We should stop leaking the authentication data here, but for the testing DB it's fine for now
+                    .send()
+                    .await.map_err(|e| e.to_string())?;
+
+                let text = response.text().await.map_err(|e| e.to_string())?;
+                // FIXME: If we can get no data back the return type of our function should be an Option
+                if text != "{\"data\":null}" {
+                    let value: Value = serde_json::from_str(&text).unwrap();
+                    let data = value.get("data").unwrap();
+                    let mut values = vec![];
+                    let mut timestamps = vec![];
+                    data.as_array().unwrap().iter().for_each(|x| {
+                        let value = x.get("value").unwrap();
+                        let timestamp = x.get("timestamp").unwrap();
+                        values.push(value.as_f64().unwrap() as i32);
+                        timestamps.push(timestamp.as_str().unwrap().to_string());
+                    });
+                    Ok(GraphData { values, timestamps })
+                } else {
+                    Err("No data found".to_string())
+                }
+            });
+            tasks.push(task);
+        }
+        let results = join_all(tasks).await;
+        let mut graphs = vec![];
+        for result in results {
+            match result {
+                Ok(Ok(graph_data)) => graphs.push(graph_data),
+                _ => {}
+            }
+        }
+
+        Ok(graphs)
+    }
 
     /// Gets all users in the database
     /// # Returns
@@ -88,6 +141,184 @@ impl ApiClient {
                 Err(e.to_string())
             }
         }
+    }
+    pub async fn create_plant(
+        self,
+        new_plant: PlantMetadata,
+        plant_group_id: i32,
+        plant_id: Option<String>,
+    ) -> Result<(), reqwest::Error> {
+        let client = self.client.lock().await;
+        let mut json = serde_json::to_value(new_plant).unwrap();
+        json["plantGroupId"] = json!(plant_group_id);
+        info!("{:?}", json);
+        let client = Client::new();
+        let response = if plant_id.is_none() {
+            let response = client
+                .post(&format!("{}plant", ENDPOINT))
+                .json(&json)
+                .send()
+                .await?;
+            response
+        } else {
+            let response = client
+                .put(&format!("{}plant/{}", ENDPOINT, plant_id.unwrap()))
+                .json(&json)
+                .send()
+                .await?;
+            response
+        };
+        let result = response.error_for_status_ref().map(|_| ());
+
+        match result {
+            Ok(_) => {
+                info!("Successfully created plant");
+                Ok(())
+            }
+            Err(e) => {
+                info!("No Plant created");
+                Err(e.to_string())
+            }
+        }
+        .expect("TODO: panic message");
+
+        Ok(())
+    }
+    pub async fn delete_plant(self, plant_id: String) -> Result<(), reqwest::Error> {
+        let client = self.client.lock().await;
+        let response = client
+            .delete(&format!("{}plant/{}", ENDPOINT, plant_id))
+            .send()
+            .await?;
+        let result = response.error_for_status_ref().map(|_| ());
+
+        match result {
+            Ok(_) => {
+                info!("Successfully deleted plant");
+                Ok(())
+            }
+            Err(e) => {
+                info!("No Plant deleted");
+                Err(e)
+            }
+        }
+    }
+    #[tokio::main(flavor = "current_thread")]
+    pub async fn delete_group(self, group_id: String) -> Result<(), reqwest::Error> {
+        let client = self.client.lock().await;
+        let response = client
+            .delete(&format!("{}plant-group/{}", ENDPOINT, group_id))
+            .send()
+            .await?;
+        let result = response.error_for_status_ref().map(|_| ());
+
+        match result {
+            Ok(_) => {
+                info!("Successfully deleted group");
+                Ok(())
+            }
+            Err(e) => {
+                info!("No Group deleted");
+                Err(e)
+            }
+        }
+    }
+    pub async fn create_group(
+        self,
+        new_group: PlantGroupMetadata,
+        group_id: Option<String>,
+    ) -> Result<(), reqwest::Error> {
+        let mut json = serde_json::to_value(new_group.clone()).unwrap();
+        for (i, sensor) in enumerate(new_group.sensorRanges.iter()) {
+            json["sensorRanges"][i]["sensor"] = json!(sensor.sensorType.name);
+        }
+        let client = self.client.lock().await;
+        let response = if group_id.is_none() {
+            client
+                .post(&format!("{}plant-group", ENDPOINT))
+                .json(&json)
+                .send()
+                .await?
+        } else {
+            client
+                .put(&format!("{}plant-group/{}", ENDPOINT, group_id.unwrap()))
+                .json(&json)
+                .send()
+                .await?
+        };
+        let result = response.error_for_status_ref().map(|_| ());
+
+        match result {
+            Ok(_) => {
+                info!("Successfully created Group");
+                Ok(())
+            }
+            Err(e) => {
+                info!("No Group created");
+                Err(e.to_string())
+            }
+        }
+        .expect("TODO: panic message");
+
+        Ok(())
+    }
+    #[tokio::main(flavor = "current_thread")]
+    pub async fn get_all_plant_ids_names(self) -> Result<Vec<(String, String)>, reqwest::Error> {
+        let client = self.client.lock().await;
+        let response = client
+            .get(ENDPOINT.to_string() + "plants/overview")
+            .send()
+            .await?;
+        let text = response.text().await?;
+        let mut ids: Vec<(String, String)> = vec![];
+        if text != "{\"plants\":null}" {
+            let value: Value = serde_json::from_str(&text).unwrap();
+            let data = value.get("plants").unwrap();
+            data.as_array().unwrap().iter().for_each(|plant| {
+                ids.push((
+                    plant.get("id").unwrap().to_string(),
+                    plant.get("name").unwrap().to_string(),
+                ));
+            });
+        }
+        Ok(ids)
+    }
+    #[tokio::main(flavor = "current_thread")]
+    pub async fn get_all_group_ids_names(self) -> Result<Vec<(String, String)>, reqwest::Error> {
+        let client = self.client.lock().await;
+        let response = client
+            .get(ENDPOINT.to_string() + "plant-groups/overview")
+            .send()
+            .await?;
+        let text = response.text().await?;
+        let mut ids: Vec<(String, String)> = vec![];
+        if text != "{\"plantGroups\":null}" {
+            let value: Value = serde_json::from_str(&text).unwrap();
+            let data = value.get("plantGroups").unwrap();
+            data.as_array().unwrap().iter().for_each(|plant| {
+                ids.push((
+                    plant.get("id").unwrap().to_string(),
+                    plant.get("name").unwrap().to_string(),
+                ));
+            });
+        }
+        Ok(ids)
+    }
+    #[tokio::main(flavor = "current_thread")]
+    pub async fn get_plant_details(
+        self,
+        plant_id: String,
+    ) -> Result<(PlantMetadata, PlantGroupMetadata), reqwest::Error> {
+        let client = self.client.lock().await;
+        let response = client
+            .get(ENDPOINT.to_string() + &format!("plant/{}", plant_id))
+            .send()
+            .await?;
+
+        let details: PlantMetadata = response.error_for_status()?.json().await?;
+        let plant_group = details.plantGroup.clone();
+
+        Ok((details, plant_group))
     }
 }
 
@@ -160,174 +391,7 @@ pub async fn login(username: String, password: String) -> RequestResult<TempCrea
         }
     }
 }
-pub async fn create_plant(
-    new_plant: PlantMetadata,
-    plant_group_id: i32,
-    plant_id: Option<String>,
-) -> Result<(), reqwest::Error> {
-    let mut json = serde_json::to_value(new_plant).unwrap();
-    json["plantGroupId"] = json!(plant_group_id);
-    info!("{:?}", json);
-    let client = Client::new();
-    let response = if plant_id.is_none() {
-        let response = client
-            .post(&format!("{}plant", ENDPOINT))
-            .header("Authorization", "Basic YWRtaW46MTIzNA==")
-            .json(&json)
-            .send()
-            .await?;
-        response
-    } else {
-        let response = client
-            .put(&format!("{}plant/{}", ENDPOINT, plant_id.unwrap()))
-            .header("Authorization", "Basic YWRtaW46MTIzNA==")
-            .json(&json)
-            .send()
-            .await?;
-        response
-    };
-    let result = response.error_for_status_ref().map(|_| ());
 
-    match result {
-        Ok(_) => {
-            info!("Successfully created plant");
-            Ok(())
-        }
-        Err(e) => {
-            info!("No Plant created");
-            Err(e.to_string())
-        }
-    }
-    .expect("TODO: panic message");
-
-    Ok(())
-}
-
-pub async fn delete_plant(plant_id: String) -> Result<(), reqwest::Error> {
-    let client = reqwest::Client::new();
-    let response = client
-        .delete(&format!("{}plant/{}", ENDPOINT, plant_id))
-        .header("Authorization", "Basic YWRtaW46MTIzNA==")
-        .send()
-        .await?;
-    let result = response.error_for_status_ref().map(|_| ());
-
-    match result {
-        Ok(_) => {
-            info!("Successfully deleted plant");
-            Ok(())
-        }
-        Err(e) => {
-            info!("No Plant deleted");
-            Err(e)
-        }
-    }
-}
-#[tokio::main(flavor = "current_thread")]
-pub async fn delete_group(group_id: String) -> Result<(), reqwest::Error> {
-    let client = Client::new();
-    let response = client
-        .delete(&format!("{}plant-group/{}", ENDPOINT, group_id))
-        .header("Authorization", "Basic YWRtaW46MTIzNA==")
-        .send()
-        .await?;
-    let result = response.error_for_status_ref().map(|_| ());
-
-    match result {
-        Ok(_) => {
-            info!("Successfully deleted group");
-            Ok(())
-        }
-        Err(e) => {
-            info!("No Group deleted");
-            Err(e)
-        }
-    }
-}
-pub async fn create_group(
-    new_group: PlantGroupMetadata,
-    group_id: Option<String>,
-) -> Result<(), reqwest::Error> {
-    let mut json = serde_json::to_value(new_group.clone()).unwrap();
-    for (i, sensor) in enumerate(new_group.sensorRanges.iter()) {
-        json["sensorRanges"][i]["sensor"] = json!(sensor.sensorType.name);
-    }
-    let client = Client::new();
-    let response = if group_id.is_none() {
-        client
-            .post(&format!("{}plant-group", ENDPOINT))
-            .header("Authorization", "Basic YWRtaW46MTIzNA==")
-            .json(&json)
-            .send()
-            .await?
-    } else {
-        client
-            .put(&format!("{}plant-group/{}", ENDPOINT, group_id.unwrap()))
-            .header("Authorization", "Basic YWRtaW46MTIzNA==")
-            .json(&json)
-            .send()
-            .await?
-    };
-    let result = response.error_for_status_ref().map(|_| ());
-
-    match result {
-        Ok(_) => {
-            info!("Successfully created Group");
-            Ok(())
-        }
-        Err(e) => {
-            info!("No Group created");
-            Err(e.to_string())
-        }
-    }
-    .expect("TODO: panic message");
-
-    Ok(())
-}
-#[tokio::main(flavor = "current_thread")]
-pub async fn get_all_plant_ids_names() -> Result<Vec<(String, String)>, reqwest::Error> {
-    let client = reqwest::Client::new();
-    let response = client
-        .get(ENDPOINT.to_string() + "plants/overview")
-        .header("Authorization", "Basic YWRtaW46MTIzNA==")
-        .send()
-        .await?;
-    let text = response.text().await?;
-    let mut ids: Vec<(String, String)> = vec![];
-    if text != "{\"plants\":null}" {
-        let value: Value = serde_json::from_str(&text).unwrap();
-        let data = value.get("plants").unwrap();
-        data.as_array().unwrap().iter().for_each(|plant| {
-            ids.push((
-                plant.get("id").unwrap().to_string(),
-                plant.get("name").unwrap().to_string(),
-            ));
-        });
-    }
-    Ok(ids)
-}
-#[tokio::main(flavor = "current_thread")]
-pub async fn get_all_group_ids_names() -> Result<Vec<(String, String)>, reqwest::Error> {
-    let client = reqwest::Client::new();
-    let response = client
-        .get(ENDPOINT.to_string() + "plant-groups/overview")
-        .header("Authorization", "Basic YWRtaW46MTIzNA==")
-        .send()
-        .await?;
-    let text = response.text().await?;
-    let mut ids: Vec<(String, String)> = vec![];
-    if text != "{\"plantGroups\":null}" {
-        let value: Value = serde_json::from_str(&text).unwrap();
-        let data = value.get("plantGroups").unwrap();
-        data.as_array().unwrap().iter().for_each(|plant| {
-            ids.push((
-                plant.get("id").unwrap().to_string(),
-                plant.get("name").unwrap().to_string(),
-            ));
-        });
-    }
-    Ok(ids)
-}
 #[derive(Deserialize, Debug, Clone, Default, Serialize)]
 pub struct PlantMetadata {
     pub name: String,
@@ -398,80 +462,11 @@ pub struct SensorType {
     pub name: String,
     pub unit: String,
 }
-#[tokio::main(flavor = "current_thread")]
-pub async fn get_plant_details(
-    plant_id: String,
-) -> Result<(PlantMetadata, PlantGroupMetadata), reqwest::Error> {
-    let client = reqwest::Client::new();
-    let response = client
-        .get(ENDPOINT.to_string() + &format!("plant/{}", plant_id))
-        .header("Authorization", "Basic YWRtaW46MTIzNA==")
-        .send()
-        .await?;
-
-    let details: PlantMetadata = response.error_for_status()?.json().await?;
-    let plant_group = details.plantGroup.clone();
-
-    Ok((details, plant_group))
-}
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct GraphData {
     pub values: Vec<i32>,
     pub timestamps: Vec<String>,
-}
-#[tokio::main(flavor = "current_thread")]
-pub async fn get_graphs(
-    plant_ids: Vec<String>,
-    sensor_type: String,
-) -> RequestResult<Vec<GraphData>> {
-    let client = reqwest::Client::new();
-    let mut tasks = vec![];
-
-    for plant_id in plant_ids {
-        let type_clone = sensor_type.clone();
-        let client = client.clone();
-        let task = tokio::spawn(async move {
-            let response = client
-                .get(&format!(
-                    "{}sensor-data?sensor={}&plant={}&from=2019-01-01T00:00:00.000Z&to=2023-05-29T23:00:00.000Z",
-                    ENDPOINT, type_clone, plant_id
-                ))
-                // FIXME: We should stop leaking the authentication data here, but for the testing DB it's fine for now
-                .header("Authorization", "Basic YWRtaW46MTIzNA==")
-                .send()
-                .await.map_err(|e| e.to_string())?;
-
-            let text = response.text().await.map_err(|e| e.to_string())?;
-            // FIXME: If we can get no data back the return type of our function should be an Option
-            if text != "{\"data\":null}" {
-                let value: Value = serde_json::from_str(&text).unwrap();
-                let data = value.get("data").unwrap();
-                let mut values = vec![];
-                let mut timestamps = vec![];
-                data.as_array().unwrap().iter().for_each(|x| {
-                    let value = x.get("value").unwrap();
-                    let timestamp = x.get("timestamp").unwrap();
-                    values.push(value.as_f64().unwrap() as i32);
-                    timestamps.push(timestamp.as_str().unwrap().to_string());
-                });
-                Ok(GraphData { values, timestamps })
-            } else {
-                Err("No data found".to_string())
-            }
-        });
-        tasks.push(task);
-    }
-    let results = join_all(tasks).await;
-    let mut graphs = vec![];
-    for result in results {
-        match result {
-            Ok(Ok(graph_data)) => graphs.push(graph_data),
-            _ => {}
-        }
-    }
-
-    Ok(graphs)
 }
 
 /// Creates a new user with the given username, password, and user data.

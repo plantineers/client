@@ -1,11 +1,9 @@
 use crate::detail::Sensortypes;
 use crate::graphs::{PlantChart, PlantCharts};
-use crate::requests::{
-    create_group, create_plant, delete_group, get_all_group_ids_names, get_all_plant_ids_names,
-    get_graphs, GraphData, PlantGroupMetadata, PlantMetadata,
-};
+
+use crate::requests::{GraphData, PlantGroupMetadata, PlantMetadata};
 use crate::Message::Home;
-use crate::{Icon, Message, MyStylesheet, Tab, TEXT_SIZE};
+use crate::{Icon, Message, MyStylesheet, Tab, API_CLIENT, TEXT_SIZE};
 use iced::alignment::{Horizontal, Vertical};
 use iced::futures::TryFutureExt;
 use iced::widget::{Button, Column, Container, Row, Text, TextInput};
@@ -50,14 +48,11 @@ pub(crate) struct HomePage {
 
 impl HomePage {
     pub fn new() -> Self {
-        let ids_name = get_all_plant_ids_names().unwrap();
-        let group_ids_name = get_all_group_ids_names().unwrap();
-        let ids = ids_name.iter().map(|x| x.0.clone()).collect_vec();
         let vec_chart = Vec::new();
         let charts = PlantCharts::new(vec_chart, HomeMessage::Plant);
         HomePage {
             selected_group: String::new(),
-            group_name_id: group_ids_name,
+            group_name_id: Vec::new(),
             show_modal: false,
             modal_is_plant: true,
             new_plant: PlantMetadata::default(),
@@ -66,7 +61,7 @@ impl HomePage {
             charts,
             active_sensor: Sensortypes::Luftfeuchtigkeit,
             group: String::new(),
-            ids,
+            ids: Vec::new(),
             new_group: PlantGroupMetadata::default(),
             sensor_border: vec!["".to_string(), "".to_string(), "".to_string()],
             sensor_data: HashMap::new(),
@@ -76,13 +71,31 @@ impl HomePage {
     pub fn update(&mut self, message: HomeMessage) -> Command<HomeMessage> {
         match message {
             HomeMessage::DeleteGroup => {
-                delete_group(self.selected_group.clone()).unwrap_or_else(|e| {
-                    info!("Error: {}", e);
-                });
+                API_CLIENT
+                    .get()
+                    .unwrap()
+                    .clone()
+                    .delete_group(self.selected_group.clone())
+                    .unwrap_or_else(|e| {
+                        info!("Error: {}", e);
+                    });
             }
             HomeMessage::Plant => (),
             HomeMessage::Refresh => {
-                HomePage::new();
+                let group_ids_name = API_CLIENT
+                    .get()
+                    .unwrap()
+                    .clone()
+                    .get_all_group_ids_names()
+                    .unwrap();
+                let ids_name = API_CLIENT
+                    .get()
+                    .unwrap()
+                    .clone()
+                    .get_all_plant_ids_names()
+                    .unwrap();
+                self.ids = ids_name.iter().map(|x| x.0.clone()).collect_vec();
+                self.group_name_id = group_ids_name;
             }
             HomeMessage::SwitchGraph(sensortypes) => {
                 self.active_sensor = sensortypes;
@@ -91,7 +104,12 @@ impl HomePage {
                     .sensor_data
                     .contains_key(sensortypes.get_name().as_str())
                 {
-                    graph_data = get_graphs(self.ids.clone(), sensortypes.get_name()).unwrap();
+                    graph_data = API_CLIENT
+                        .get()
+                        .unwrap()
+                        .clone()
+                        .get_graphs(self.ids.clone(), sensortypes.get_name())
+                        .unwrap();
                     self.sensor_data
                         .insert(sensortypes.get_name(), graph_data.clone());
                 } else {
@@ -172,7 +190,7 @@ impl HomePage {
                     self.show_modal = false;
                     return Command::perform(
                         // TODO: Don't unwrap the group but give feedback to the user
-                        create_plant(
+                        API_CLIENT.get().unwrap().clone().create_plant(
                             self.new_plant.clone(),
                             self.group.clone().parse().unwrap(),
                             None,
@@ -196,9 +214,14 @@ impl HomePage {
                             .unwrap();
                     }
                     self.show_modal = false;
-                    return Command::perform(create_group(self.new_group.clone(), None), |_| {
-                        HomeMessage::Refresh
-                    });
+                    return Command::perform(
+                        API_CLIENT
+                            .get()
+                            .unwrap()
+                            .clone()
+                            .create_group(self.new_group.clone(), None),
+                        |_| HomeMessage::Refresh,
+                    );
                 }
             }
         }

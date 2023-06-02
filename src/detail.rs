@@ -1,10 +1,8 @@
 use crate::graphs::{PlantChart, PlantCharts};
-use crate::requests::{
-    create_group, create_plant, delete_group, delete_plant, get_all_plant_ids_names, get_graphs,
-    get_plant_details, GraphData, PlantGroupMetadata, PlantMetadata,
-};
+
 //TODO: Groups shouldnt be deleted here, fix error handling
-use crate::{Icon, Message, MyStylesheet, Tab, TEXT_SIZE};
+use crate::requests::{GraphData, PlantGroupMetadata, PlantMetadata};
+use crate::{Icon, Message, MyStylesheet, Tab, API_CLIENT, TEXT_SIZE};
 use iced::alignment::{Horizontal, Vertical};
 use iced::futures::TryFutureExt;
 use iced::widget::{Button, Column, Container, Row, Text, TextInput};
@@ -29,8 +27,12 @@ pub struct DetailPlant {
 impl DetailPlant {
     pub fn new(id: String, graph_data: Vec<GraphData>) -> Self {
         // TODO: Fix error handling, Message System
-        let plant_data: (PlantMetadata, PlantGroupMetadata) =
-            get_plant_details(id.clone()).unwrap_or_default();
+        let plant_data: (PlantMetadata, PlantGroupMetadata) = API_CLIENT
+            .get()
+            .unwrap()
+            .clone()
+            .get_plant_details(id.clone())
+            .unwrap_or_default();
         let charts = PlantCharts::create_charts(
             DetailMessage::Loaded,
             graph_data,
@@ -181,18 +183,33 @@ impl DetailPage {
                 return Command::perform(
                     async {
                         // TODO: Error handling here by not unwrapping
-                        delete_plant(plant_id).await.unwrap_or_else(|_| ());
+                        API_CLIENT
+                            .get()
+                            .unwrap()
+                            .clone()
+                            .delete_plant(plant_id)
+                            .await
+                            .unwrap_or_else(|_| ());
                     },
                     |_| DetailMessage::DeleteSuccess,
                 );
             }
             DetailMessage::Load => {
                 //if empty self.id_names should be an empty vec
-                self.id_names = get_all_plant_ids_names().unwrap_or_default();
+                self.id_names = API_CLIENT
+                    .get()
+                    .unwrap()
+                    .clone()
+                    .get_all_plant_ids_names()
+                    .unwrap_or_default();
                 self.message = DetailMessage::Pending;
             }
             DetailMessage::PlantData(id) => {
-                let graph_data = get_graphs(vec![id.clone()], Sensortypes::Feuchtigkeit.get_name());
+                let graph_data = API_CLIENT
+                    .get()
+                    .unwrap()
+                    .clone()
+                    .get_graphs(vec![id.clone()], Sensortypes::Feuchtigkeit.get_name());
                 self.plant = DetailPlant::new(id, graph_data.unwrap_or_default());
                 self.plant.data.additionalCareTips.iter().for_each(|x| {
                     self.additionalCareTips.push_str(x);
@@ -218,7 +235,11 @@ impl DetailPage {
             }
             DetailMessage::SwitchGraph(sensor_types) => {
                 let sensor_name = sensor_types.get_name();
-                let graph_data = get_graphs(vec![self.plant.id.clone()], sensor_name);
+                let graph_data = API_CLIENT
+                    .get()
+                    .unwrap()
+                    .clone()
+                    .get_graphs(vec![self.plant.id.clone()], sensor_name);
                 self.plant.charts = PlantCharts::update_charts(
                     &self.plant.charts,
                     DetailMessage::Loaded,
@@ -254,7 +275,7 @@ impl DetailPage {
                         .split(';')
                         .map(|x| x.to_string())
                         .collect();
-                    let _ = create_plant(
+                    let _ = API_CLIENT.get().unwrap().clone().create_plant(
                         self.plant.data.clone(),
                         self.plant.data.plantGroup.id,
                         Some(self.plant.id.clone()),
@@ -277,7 +298,7 @@ impl DetailPage {
                             .parse()
                             .unwrap();
                     }
-                    let _ = create_group(
+                    let _ = API_CLIENT.get().unwrap().clone().create_group(
                         self.plant.data.plantGroup.clone(),
                         Some(self.plant.data.plantGroup.id.to_string().clone()),
                     );

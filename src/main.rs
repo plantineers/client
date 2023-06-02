@@ -201,7 +201,7 @@ impl Application for Plantbuddy {
                                 .update(ManagementMessage::GetUsersPressed)
                                 .map(Message::Management),
                             self.home_page
-                                .update(HomeMessage::SwitchGraph(Sensortypes::Feuchtigkeit))
+                                .update(HomeMessage::Refresh)
                                 .map(Message::Home),
                             self.detail_page
                                 .update(DetailMessage::Load)
