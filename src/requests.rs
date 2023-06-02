@@ -308,6 +308,28 @@ pub async fn get_all_plant_ids_names() -> Result<Vec<(String, String)>, reqwest:
     }
     Ok(ids)
 }
+#[tokio::main(flavor = "current_thread")]
+pub async fn get_all_group_ids_names() -> Result<Vec<(String, String)>, reqwest::Error> {
+    let client = reqwest::Client::new();
+    let response = client
+        .get(ENDPOINT.to_string() + "plant-groups/overview")
+        .header("Authorization", "Basic YWRtaW46MTIzNA==")
+        .send()
+        .await?;
+    let text = response.text().await?;
+    let mut ids: Vec<(String, String)> = vec![];
+    if text != "{\"plantGroups\":null}" {
+        let value: Value = serde_json::from_str(&text).unwrap();
+        let data = value.get("plantGroups").unwrap();
+        data.as_array().unwrap().iter().for_each(|plant| {
+            ids.push((
+                plant.get("id").unwrap().to_string(),
+                plant.get("name").unwrap().to_string(),
+            ));
+        });
+    }
+    Ok(ids)
+}
 #[derive(Deserialize, Debug, Clone, Default, Serialize)]
 pub struct PlantMetadata {
     pub name: String,

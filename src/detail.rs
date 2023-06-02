@@ -3,6 +3,7 @@ use crate::requests::{
     create_group, create_plant, delete_group, delete_plant, get_all_plant_ids_names, get_graphs,
     get_plant_details, GraphData, PlantGroupMetadata, PlantMetadata,
 };
+//TODO: Groups shouldnt be deleted here, fix error handling
 use crate::{Icon, Message, MyStylesheet, Tab, TEXT_SIZE};
 use iced::alignment::{Horizontal, Vertical};
 use iced::widget::{Button, Column, Container, Row, Text, TextInput};
@@ -166,11 +167,7 @@ impl DetailPage {
                 self.message = DetailMessage::Pending;
             }
             DetailMessage::Delete => {
-                if self.modal_is_plant {
-                    delete_plant(self.plant.id.clone()).unwrap();
-                } else {
-                    delete_group(self.plant.data.plantGroup.id.to_string()).unwrap();
-                }
+                delete_plant(self.plant.id.clone()).unwrap();
                 self.modal = false;
                 self.message = DetailMessage::Pending;
             }
@@ -472,13 +469,12 @@ impl Tab for DetailPage {
                             .width(Length::Fill)
                             .push(
                                 Button::new(
-                                    Text::new("Löschen")
+                                    Text::new("Zurück")
                                         .size(TEXT_SIZE)
                                         .horizontal_alignment(Horizontal::Center),
                                 )
-                                .style(theme::Button::Destructive)
                                 .width(Length::Fill)
-                                .on_press(DetailMessage::Delete),
+                                .on_press(DetailMessage::CloseModal),
                             )
                             .push(
                                 Button::new(
