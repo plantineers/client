@@ -189,7 +189,6 @@ impl DetailPage {
                             .unwrap()
                             .clone()
                             .delete_plant(plant_id)
-                            .await
                             .unwrap_or_else(|_| ());
                     },
                     |_| DetailMessage::DeleteSuccess,

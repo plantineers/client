@@ -196,6 +196,9 @@ impl Application for Plantbuddy {
                         self.management_tab.logged_in_user = user.clone();
 
                         return Command::batch(vec![
+                            self.detail_page
+                                .update(DetailMessage::Load)
+                                .map(Message::Detail),
                             // Get all users from the server and update the management tab
                             self.management_tab
                                 .update(ManagementMessage::GetUsersPressed)
@@ -203,9 +206,6 @@ impl Application for Plantbuddy {
                             self.home_page
                                 .update(HomeMessage::Refresh)
                                 .map(Message::Home),
-                            self.detail_page
-                                .update(DetailMessage::Load)
-                                .map(Message::Detail),
                         ]);
                     }
                 }
