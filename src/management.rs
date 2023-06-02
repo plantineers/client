@@ -147,10 +147,7 @@ impl ManagementTab {
             ManagementMessage::GetUsersPressed => {
                 self.error_message = String::new();
                 if let Some(client) = API_CLIENT.get() {
-                    return Command::perform(
-                        client.clone().get_all_users(),
-                        ManagementMessage::UsersReceived,
-                    );
+                    return get_all_users_pressed(client.clone());
                 }
             }
             ManagementMessage::UserCreated(result) => match result {

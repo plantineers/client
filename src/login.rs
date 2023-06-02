@@ -128,12 +128,7 @@ impl LoginTab {
             }
             LoginMessage::Login(result) => match result {
                 Ok(user) => {
-                    info!("Login successful");
-                    info!("User: {:?}", user);
                     self.login_failed = false;
-                    API_CLIENT
-                        .set(ApiClient::new(user.name, user.password))
-                        .unwrap();
                 }
                 Err(error) => {
                     info!("Login failed");

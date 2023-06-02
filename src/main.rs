@@ -187,21 +187,26 @@ impl Application for Plantbuddy {
                         self.is_logged_in = LoginState::LoggedIn;
                         self.user = user.clone();
 
+                        API_CLIENT
+                            .set(ApiClient::new(user.name.clone(), user.password.clone()))
+                            .unwrap();
                         // Clear the LoginTab
-
                         self.login_page = LoginTab::new();
-
                         // Update the logged in user in the management tab
                         self.management_tab.logged_in_user = user.clone();
 
-                        self.home_page
-                            .update(HomeMessage::SwitchGraph(Sensortypes::Feuchtigkeit));
-                        self.detail_page.update(DetailMessage::Load);
-                        // Get all users from the server and update the management tab
-                        return self
-                            .management_tab
-                            .update(ManagementMessage::GetUsersPressed)
-                            .map(Message::Management);
+                        return Command::batch(vec![
+                            // Get all users from the server and update the management tab
+                            self.management_tab
+                                .update(ManagementMessage::GetUsersPressed)
+                                .map(Message::Management),
+                            self.home_page
+                                .update(HomeMessage::SwitchGraph(Sensortypes::Feuchtigkeit))
+                                .map(Message::Home),
+                            self.detail_page
+                                .update(DetailMessage::Load)
+                                .map(Message::Detail),
+                        ]);
                     }
                 }
                 return self.login_page.update(message).map(Message::Login);

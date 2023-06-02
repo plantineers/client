@@ -495,7 +495,7 @@ pub async fn create_user(
         .post(ENDPOINT.to_string() + "user")
         .header(
             "Authorization",
-            "Basic".to_string() + &encode_credentials(username.clone(), password.clone()),
+            "Basic ".to_string() + &encode_credentials(username.clone(), password.clone()),
         )
         .json(&user)
         .send()
