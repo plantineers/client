@@ -150,7 +150,6 @@ impl ApiClient {
     ) -> Result<(), reqwest::Error> {
         let client = self.client.lock().await;
         let mut json = serde_json::to_value(new_plant).unwrap();
-        info!("Creating plant with json: {:?}", json);
         json["plantGroupId"] = json!(plant_group_id);
         let client = Client::new();
         let response = if plant_id.is_none() {

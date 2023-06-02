@@ -293,7 +293,7 @@ impl Tab for HomePage {
                                         .on_input(|input| HomeMessage::FieldUpdated(4, input)),
                                 )
                                 .spacing(20)
-                                .push(Text::new("Die Pflanzengruppen ID kann auf der Startseite eingsehen werden").size(TEXT_SIZE))
+                                .push(Text::new("Die Pflanzengruppen ID kann auf der Startseite eingesehen werden").size(TEXT_SIZE))
                                 .spacing(20)
                                 .push(
                                     TextInput::new("PflanzengruppenID", &self.group)
