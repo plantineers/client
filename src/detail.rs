@@ -7,7 +7,7 @@ use crate::requests::{
 use crate::{Icon, Message, MyStylesheet, Tab, TEXT_SIZE};
 use iced::alignment::{Horizontal, Vertical};
 use iced::widget::{Button, Column, Container, Row, Text, TextInput};
-use iced::{theme, Element, Length};
+use iced::{theme, Command, Element, Length};
 use iced_aw::tab_bar::TabLabel;
 use iced_aw::{style, Card, Modal};
 use iced_core::Alignment::Center;
@@ -56,6 +56,7 @@ pub enum DetailMessage {
     SwitchGraph(Sensortypes),
     Search(String),
     FieldUpdated(u8, String),
+    DeleteSuccess,
 }
 
 pub(crate) struct DetailPage {
@@ -146,30 +147,42 @@ impl DetailPage {
             .iter()
             .filter(|sensor| sensor.sensorType.name == sensor_types.get_name())
             .for_each(|sensor| {
+                let current_chart = self
+                    .plant
+                    .charts
+                    .charts
+                    .get(0)
+                    .map(|chart| chart.clone())
+                    .unwrap_or_default();
                 charts.push(PlantChart::new(
                     format!("{:?}_Max_Grenze", self.plant.data.name.clone()),
-                    self.plant.charts.charts[0].x.clone(),
+                    current_chart.x.clone(),
                     vec![sensor.max; self.plant.charts.charts[0].x.len()],
                     BLACK,
                 ));
                 charts.push(PlantChart::new(
                     format!("{:?}_Min_Grenze", self.plant.data.name.clone()),
-                    self.plant.charts.charts[0].x.clone(),
-                    vec![sensor.min; self.plant.charts.charts[0].x.len()],
+                    current_chart.x.clone(),
+                    vec![sensor.min; current_chart.x.len()],
                     BLACK,
                 ))
             });
         charts
     }
-    pub fn update(&mut self, message: DetailMessage) {
+    pub fn update(&mut self, message: DetailMessage) -> Command<DetailMessage> {
         match message {
             DetailMessage::Pending => {
                 self.message = DetailMessage::Pending;
             }
             DetailMessage::Delete => {
-                delete_plant(self.plant.id.clone()).unwrap();
-                self.modal = false;
-                self.message = DetailMessage::Pending;
+                let plant_id = self.plant.id.clone();
+                return Command::perform(
+                    async {
+                        // TODO: Error handling here by not unwrapping
+                        delete_plant(plant_id).await.unwrap()
+                    },
+                    |_| DetailMessage::DeleteSuccess,
+                );
             }
             DetailMessage::Load => {
                 self.id_names = get_all_plant_ids_names().unwrap();
@@ -296,7 +309,12 @@ impl DetailPage {
                 }
                 _ => {}
             },
+            DetailMessage::DeleteSuccess => {
+                self.modal = false;
+                self.message = DetailMessage::Pending;
+            }
         }
+        Command::none()
     }
 }
 

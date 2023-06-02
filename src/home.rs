@@ -169,7 +169,11 @@ impl HomePage {
                     self.show_modal = false;
                     return Command::perform(
                         // TODO: Don't unwrap the group but give feedback to the user
-                        create_plant(self.new_plant.clone(), self.group.clone().parse().unwrap()),
+                        create_plant(
+                            self.new_plant.clone(),
+                            self.group.clone().parse().unwrap(),
+                            None,
+                        ),
                         |_| HomeMessage::Refresh,
                     );
                 } else {
@@ -189,7 +193,7 @@ impl HomePage {
                             .unwrap();
                     }
                     self.show_modal = false;
-                    return Command::perform(create_group(self.new_group.clone()), |_| {
+                    return Command::perform(create_group(self.new_group.clone(), None), |_| {
                         HomeMessage::Refresh
                     });
                 }

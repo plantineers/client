@@ -12,8 +12,6 @@
 
 mod detail;
 mod graphs;
-use std::sync::OnceLock;
-
 mod home;
 mod login;
 mod logout;
@@ -209,7 +207,9 @@ impl Application for Plantbuddy {
                 return self.login_page.update(message).map(Message::Login);
             }
             Message::Home(message) => return self.home_page.update(message).map(Message::Home),
-            Message::Detail(message) => self.detail_page.update(message),
+            Message::Detail(message) => {
+                return self.detail_page.update(message).map(Message::Detail)
+            }
             Message::Settings(message) => self.settings_tab.update(message),
             Message::Logout(message) => {
                 self.logout_tab.update(message.clone());

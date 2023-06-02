@@ -33,6 +33,16 @@ impl PlantChart {
         self.color
     }
 }
+impl Default for PlantChart {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            x: Vec::new(),
+            y: Vec::new(),
+            color: BLUE,
+        }
+    }
+}
 #[derive(Debug, Clone, PartialEq)]
 pub struct PlantCharts<M> {
     pub charts: Vec<PlantChart>,

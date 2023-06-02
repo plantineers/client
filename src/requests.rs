@@ -244,7 +244,6 @@ pub async fn delete_group(group_id: String) -> Result<(), reqwest::Error> {
         }
     }
 }
-#[tokio::main(flavor = "current_thread")]
 pub async fn create_group(
     new_group: PlantGroupMetadata,
     group_id: Option<String>,
