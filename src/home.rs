@@ -71,14 +71,17 @@ impl HomePage {
     pub fn update(&mut self, message: HomeMessage) -> Command<HomeMessage> {
         match message {
             HomeMessage::DeleteGroup => {
-                API_CLIENT
-                    .get()
-                    .unwrap()
-                    .clone()
-                    .delete_group(self.selected_group.clone())
-                    .unwrap_or_else(|e| {
-                        info!("Error: {}", e);
-                    });
+                return Command::perform(
+                    API_CLIENT
+                        .get()
+                        .unwrap()
+                        .clone()
+                        .delete_group(self.selected_group.clone())
+                        .unwrap_or_else(|e| {
+                            info!("Error: {}", e);
+                        }),
+                    |_| HomeMessage::Refresh,
+                )
             }
             HomeMessage::Plant => (),
             HomeMessage::Refresh => {

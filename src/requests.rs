@@ -183,6 +183,7 @@ impl ApiClient {
         Ok(())
     }
     pub async fn delete_plant(self, plant_id: String) -> Result<(), reqwest::Error> {
+        info!("Plant {} deleted", plant_id);
         let client = self.client.lock().await;
         let response = client
             .delete(&format!("{}plant/{}", ENDPOINT, plant_id))
@@ -201,7 +202,6 @@ impl ApiClient {
             }
         }
     }
-    #[tokio::main(flavor = "current_thread")]
     pub async fn delete_group(self, group_id: String) -> Result<(), reqwest::Error> {
         let client = self.client.lock().await;
         let response = client

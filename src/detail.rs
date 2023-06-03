@@ -182,19 +182,18 @@ impl DetailPage {
             DetailMessage::Delete => {
                 let plant_id = self.plant.id.clone();
                 return Command::perform(
-                    async {
-                        // TODO: Error handling here by not unwrapping
-                        API_CLIENT
-                            .get()
-                            .unwrap()
-                            .clone()
-                            .delete_plant(plant_id)
-                            .unwrap_or_else(|_| ());
-                    },
+                    // TODO: Error handling here by not unwrapping
+                    API_CLIENT
+                        .get()
+                        .unwrap()
+                        .clone()
+                        .delete_plant(plant_id)
+                        .unwrap_or_else(|_| ()),
                     |_| DetailMessage::DeleteSuccess,
                 );
             }
             DetailMessage::Load => {
+                info!("Refresh");
                 //if empty self.id_names should be an empty vec
                 self.id_names = API_CLIENT
                     .get()
@@ -307,7 +306,7 @@ impl DetailPage {
                     );
                 }
                 self.modal = false;
-                self.message = DetailMessage::Pending;
+                self.message = DetailMessage::Load;
             }
             DetailMessage::FieldUpdated(index, value) => match index {
                 0 => self.plant.data.name = value,
@@ -657,6 +656,10 @@ impl Tab for DetailPage {
                             .on_press(DetailMessage::PlantData(self.plant.id.clone())),
                     )
                     .spacing(20)
+                    .push(
+                        Button::new(Text::new("Refresh").size(TEXT_SIZE))
+                            .on_press(DetailMessage::Load),
+                    )
                     .align_items(Center);
                 let column = Column::new().push(id_name_column).push(row);
                 let row = Row::new().push(column).spacing(20).align_items(Center);
