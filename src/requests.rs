@@ -6,6 +6,7 @@ use base64::{engine::general_purpose, Engine as _};
 use iced::futures::future::join_all;
 use itertools::enumerate;
 use log::info;
+use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::sync::Mutex;
@@ -147,7 +148,8 @@ impl ApiClient {
             .build()
             .unwrap()
     }
-    pub fn replace_inner(self, username: String, password: String) {
+    #[tokio::main(flavor = "current_thread")]
+    pub async fn replace_inner(self, username: String, password: String) {
         let new_client = Self::build_client(username, password);
         let mut client_lock = self.client.lock().await;
         *client_lock = new_client
