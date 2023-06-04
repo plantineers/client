@@ -2,16 +2,12 @@ use std::sync::Arc;
 // TODO: Give user not hardcoded credentials
 use crate::login::PlantBuddyRole;
 use crate::management::User;
-use base64::{
-    engine::{self, general_purpose},
-    Engine as _,
-};
+use base64::{engine::general_purpose, Engine as _};
 use iced::futures::future::join_all;
 use itertools::enumerate;
 use log::info;
-use reqwest::{Client, Request};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, to_string, Value};
+use serde_json::{json, Value};
 use tokio::sync::Mutex;
 
 /// The endpoint of our API

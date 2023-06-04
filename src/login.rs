@@ -124,7 +124,7 @@ impl LoginTab {
                 return check_login(&self.username, &self.password);
             }
             LoginMessage::Login(result) => match result {
-                Ok(user) => {
+                Ok(_) => {
                     self.login_failed = false;
                 }
                 Err(error) => {

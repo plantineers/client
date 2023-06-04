@@ -85,9 +85,6 @@ impl ManagementTab {
     /// Updates the state of the ManagementTab based on a given message.
     /// Returns a command to be run by the runtime, such as API calls to create or delete users.
     pub fn update(&mut self, message: ManagementMessage) -> Command<ManagementMessage> {
-        let username = self.logged_in_user.name.clone();
-        let password = self.logged_in_user.password.clone();
-
         match message {
             ManagementMessage::UsernameChanged(username) => {
                 self.username_input = username;
@@ -110,7 +107,7 @@ impl ManagementTab {
                     if let Some(client) = API_CLIENT.get() {
                         return create_user_pressed(self.clone(), client.clone());
                     }
-                    return Command::none();
+                    Command::none()
                 } else {
                     // Editing mode
                     if self.username_input.is_empty() || self.password_input.is_empty() {
@@ -120,7 +117,7 @@ impl ManagementTab {
                     if let Some(client) = API_CLIENT.get() {
                         return edit_user_pressed(self.clone(), client.clone());
                     }
-                    return Command::none();
+                    Command::none()
                 };
             }
             ManagementMessage::DeleteUserPressed(id) => {
