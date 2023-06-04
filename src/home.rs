@@ -43,7 +43,9 @@ pub(crate) struct HomePage {
     charts: PlantCharts<HomeMessage>,
     active_sensor: Sensortypes,
     ids: Vec<String>,
-    sensor_data: HashMap<String, Vec<GraphData>>,
+    id_names: Vec<(String, String)>,
+    names: Vec<String>,
+    sensor_data: HashMap<String, (Vec<GraphData>, Vec<String>)>,
 }
 
 impl HomePage {
@@ -59,6 +61,8 @@ impl HomePage {
             additionalCareTips: String::new(),
             careTips: String::new(),
             charts,
+            names: Vec::new(),
+            id_names: Vec::new(),
             active_sensor: Sensortypes::Luftfeuchtigkeit,
             group: String::new(),
             ids: Vec::new(),
@@ -71,14 +75,17 @@ impl HomePage {
     pub fn update(&mut self, message: HomeMessage) -> Command<HomeMessage> {
         match message {
             HomeMessage::DeleteGroup => {
-                API_CLIENT
-                    .get()
-                    .unwrap()
-                    .clone()
-                    .delete_group(self.selected_group.clone())
-                    .unwrap_or_else(|e| {
-                        info!("Error: {}", e);
-                    });
+                return Command::perform(
+                    API_CLIENT
+                        .get()
+                        .unwrap()
+                        .clone()
+                        .delete_group(self.selected_group.clone())
+                        .unwrap_or_else(|e| {
+                            info!("Error: {}", e);
+                        }),
+                    |_| HomeMessage::Refresh,
+                )
             }
             HomeMessage::Plant => (),
             HomeMessage::Refresh => {
@@ -88,13 +95,13 @@ impl HomePage {
                     .clone()
                     .get_all_group_ids_names()
                     .unwrap();
-                let ids_name = API_CLIENT
+                self.id_names = API_CLIENT
                     .get()
                     .unwrap()
                     .clone()
                     .get_all_plant_ids_names()
                     .unwrap();
-                self.ids = ids_name.iter().map(|x| x.0.clone()).collect_vec();
+                self.ids = self.id_names.iter().map(|x| x.0.clone()).collect_vec();
                 self.group_name_id = group_ids_name;
             }
             HomeMessage::SwitchGraph(sensortypes) => {
@@ -104,28 +111,41 @@ impl HomePage {
                     .sensor_data
                     .contains_key(sensortypes.get_name().as_str())
                 {
-                    graph_data = API_CLIENT
+                    let data = API_CLIENT
                         .get()
                         .unwrap()
                         .clone()
                         .get_graphs(self.ids.clone(), sensortypes.get_name())
                         .unwrap();
-                    self.sensor_data
-                        .insert(sensortypes.get_name(), graph_data.clone());
+                    // Collect names from id_names if id is in data
+                    self.names = self
+                        .id_names
+                        .iter()
+                        .filter(|(id, _)| data.iter().any(|(_, i)| i == id))
+                        .map(|(_, name)| name.clone())
+                        .collect_vec();
+                    // Collect graph_data from data and pair with names
+                    graph_data = data.iter().map(|(g, _)| g.clone()).collect();
+                    self.sensor_data.insert(
+                        sensortypes.get_name(),
+                        (graph_data.clone(), self.names.clone()),
+                    );
                 } else {
-                    graph_data = self
+                    info!("Sensor data not in HashMap");
+                    let data = self
                         .sensor_data
                         .get(sensortypes.get_name().as_str())
                         .unwrap()
                         .clone();
+                    graph_data = data.0;
+                    self.names = data.1;
                 }
-
                 self.charts = PlantCharts::update_charts(
                     &self.charts.clone(),
                     HomeMessage::Plant,
-                    graph_data.clone(),
+                    graph_data,
                     sensortypes,
-                    format!("{}%", self.active_sensor),
+                    self.names.clone(),
                 );
             }
             HomeMessage::OpenModalPlant => {
@@ -181,22 +201,22 @@ impl HomePage {
             HomeMessage::CloseModal => self.show_modal = false,
             HomeMessage::CancelButtonPressed => self.show_modal = false,
             HomeMessage::OkButtonPressed => {
-                if self.modal_is_plant {
+                return if self.modal_is_plant {
                     self.new_plant.additionalCareTips = self
                         .additionalCareTips
                         .split(';')
                         .map(String::from)
                         .collect();
                     self.show_modal = false;
-                    return Command::perform(
-                        // TODO: Don't unwrap the group but give feedback to the user
+                    Command::perform(
+                        // TODO: Give feedback to the user
                         API_CLIENT.get().unwrap().clone().create_plant(
                             self.new_plant.clone(),
-                            self.group.clone().parse().unwrap(),
+                            self.group.clone().parse().unwrap_or_default(),
                             None,
                         ),
                         |_| HomeMessage::Refresh,
-                    );
+                    )
                 } else {
                     self.new_group.careTips = self.careTips.split(';').map(String::from).collect();
                     for (i, sensor) in enumerate(self.new_group.sensorRanges.iter_mut()) {
@@ -205,24 +225,24 @@ impl HomePage {
                             .next()
                             .unwrap()
                             .parse()
-                            .unwrap();
+                            .unwrap_or(0);
                         sensor.min = self.sensor_border.clone()[i]
                             .split(';')
                             .last()
                             .unwrap()
                             .parse()
-                            .unwrap();
+                            .unwrap_or(0);
                     }
                     self.show_modal = false;
-                    return Command::perform(
+                    Command::perform(
                         API_CLIENT
                             .get()
                             .unwrap()
                             .clone()
                             .create_group(self.new_group.clone(), None),
                         |_| HomeMessage::Refresh,
-                    );
-                }
+                    )
+                };
             }
         }
         Command::none()

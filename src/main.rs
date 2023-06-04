@@ -19,33 +19,25 @@ mod management;
 mod requests;
 mod settings;
 
-use crate::graphs::PlantCharts;
-use iced::alignment::{Horizontal, Vertical};
-use iced::theme::{Custom, Palette};
-use iced::widget::container::{Appearance, StyleSheet};
-use iced::widget::vertical_slider::draw;
-use iced::widget::{button, container, row, Button, Column, Container, Image, Row, Text};
-use iced::{
-    executor, window, Application, Background, Color, Command, Element, Font, Length, Sandbox,
-    Settings, Theme,
-};
-use iced_aw::style::TabBarStyles;
-use iced_aw::{TabBar, TabLabel, Tabs};
-use log::info;
-use plotters::coord::types::RangedCoordf32;
-use plotters::prelude::*;
-use plotters_iced::{Chart, ChartBuilder, ChartWidget, DrawingBackend};
-use requests::ApiClient;
-use serde::__private::de::IdentifierDeserializer;
-use std::sync::OnceLock;
-
-use crate::detail::{DetailMessage, DetailPage, Sensortypes};
+use crate::detail::{DetailMessage, DetailPage};
 use crate::home::{HomeMessage, HomePage};
 use crate::login::{LoginMessage, LoginTab, PlantBuddyRole};
 use crate::logout::{LogoutMessage, LogoutTab};
 use crate::management::{ManagementMessage, ManagementTab};
 use crate::requests::{RequestResult, TempCreationUser};
+use iced::alignment::{Horizontal, Vertical};
+use iced::theme::{Custom, Palette};
+use iced::widget::container::{Appearance, StyleSheet};
+use iced::widget::vertical_slider::draw;
+use iced::widget::{Column, Container, Text};
+use iced::{
+    executor, window, Application, Background, Color, Command, Element, Font, Length, Settings,
+    Theme,
+};
+use iced_aw::{TabLabel, Tabs};
+use requests::ApiClient;
 use settings::{SettingsMessage, SettingsTab, TabBarPosition};
+use std::sync::OnceLock;
 
 /// The font used for the icons.
 const EXTERNAL_ICON_FONT: Font = iced::Font::External {
@@ -187,9 +179,15 @@ impl Application for Plantbuddy {
                         self.is_logged_in = LoginState::LoggedIn;
                         self.user = user.clone();
 
-                        API_CLIENT
-                            .set(ApiClient::new(user.name.clone(), user.password.clone()))
-                            .unwrap();
+                        let res = API_CLIENT
+                            .set(ApiClient::new(user.name.clone(), user.password.clone()));
+                        if res.is_err() {
+                            API_CLIENT
+                                .get()
+                                .unwrap()
+                                .clone()
+                                .replace_inner(user.name.clone(), user.password.clone());
+                        }
                         // Clear the LoginTab
                         self.login_page = LoginTab::new();
                         // Update the logged in user in the management tab

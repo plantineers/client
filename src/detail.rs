@@ -38,7 +38,7 @@ impl DetailPlant {
             DetailMessage::Loaded,
             graph_data,
             Sensortypes::Feuchtigkeit,
-            plant_data.0.name.clone(),
+            vec![plant_data.0.name.clone()],
         );
         DetailPlant {
             id,
@@ -182,19 +182,18 @@ impl DetailPage {
             DetailMessage::Delete => {
                 let plant_id = self.plant.id.clone();
                 return Command::perform(
-                    async {
-                        // TODO: Error handling here by not unwrapping
-                        API_CLIENT
-                            .get()
-                            .unwrap()
-                            .clone()
-                            .delete_plant(plant_id)
-                            .unwrap_or_else(|_| ());
-                    },
+                    // TODO: Error handling here by not unwrapping
+                    API_CLIENT
+                        .get()
+                        .unwrap()
+                        .clone()
+                        .delete_plant(plant_id)
+                        .unwrap_or_else(|_| ()),
                     |_| DetailMessage::DeleteSuccess,
                 );
             }
             DetailMessage::Load => {
+                info!("Refresh");
                 //if empty self.id_names should be an empty vec
                 self.id_names = API_CLIENT
                     .get()
@@ -205,12 +204,14 @@ impl DetailPage {
                 self.message = DetailMessage::Pending;
             }
             DetailMessage::PlantData(id) => {
-                let graph_data = API_CLIENT
+                let data = API_CLIENT
                     .get()
                     .unwrap()
                     .clone()
-                    .get_graphs(vec![id.clone()], Sensortypes::Feuchtigkeit.get_name());
-                self.plant = DetailPlant::new(id, graph_data.unwrap_or_default());
+                    .get_graphs(vec![id.clone()], Sensortypes::Feuchtigkeit.get_name())
+                    .unwrap_or_default();
+                let graph_data: Vec<GraphData> = data.iter().map(|(g, _)| g.clone()).collect();
+                self.plant = DetailPlant::new(id, graph_data);
                 self.plant.data.additionalCareTips.iter().for_each(|x| {
                     self.additionalCareTips.push_str(x);
                     self.additionalCareTips.push(';');
@@ -235,17 +236,19 @@ impl DetailPage {
             }
             DetailMessage::SwitchGraph(sensor_types) => {
                 let sensor_name = sensor_types.get_name();
-                let graph_data = API_CLIENT
+                let data = API_CLIENT
                     .get()
                     .unwrap()
                     .clone()
-                    .get_graphs(vec![self.plant.id.clone()], sensor_name);
+                    .get_graphs(vec![self.plant.id.clone()], sensor_name)
+                    .unwrap_or_default();
+                let graph_data: Vec<GraphData> = data.iter().map(|(g, _)| g.clone()).collect();
                 self.plant.charts = PlantCharts::update_charts(
                     &self.plant.charts,
                     DetailMessage::Loaded,
-                    graph_data.unwrap(),
+                    graph_data,
                     sensor_types,
-                    self.plant.data.name.clone(),
+                    vec![self.plant.data.name.clone()],
                 );
                 self.plant
                     .charts
@@ -269,20 +272,21 @@ impl DetailPage {
                 self.modal = false;
             }
             DetailMessage::OkButtonPressed => {
-                if self.modal_is_plant {
+                return if self.modal_is_plant {
                     self.plant.data.additionalCareTips = self
                         .additionalCareTips
                         .split(';')
                         .map(|x| x.to_string())
                         .collect();
-                    return Command::perform(
+                    self.modal = false;
+                    Command::perform(
                         API_CLIENT.get().unwrap().clone().create_plant(
                             self.plant.data.clone(),
-                            self.plant.data.plantGroup.id,
+                            self.plant.data.plantGroup.id.clone(),
                             Some(self.plant.id.clone()),
                         ),
                         |_| DetailMessage::Loaded,
-                    );
+                    )
                 } else {
                     self.plant.data.plantGroup.careTips =
                         self.careTips.split(';').map(|x| x.to_string()).collect();
@@ -293,28 +297,30 @@ impl DetailPage {
                             .next()
                             .unwrap()
                             .parse()
-                            .unwrap();
+                            .unwrap_or_default();
                         sensor.min = self.sensor_border.clone()[i]
                             .split(';')
                             .last()
                             .unwrap()
                             .parse()
-                            .unwrap();
+                            .unwrap_or_default();
                     }
-                    let _ = API_CLIENT.get().unwrap().clone().create_group(
-                        self.plant.data.plantGroup.clone(),
-                        Some(self.plant.data.plantGroup.id.to_string().clone()),
-                    );
+                    self.modal = false;
+                    Command::perform(
+                        API_CLIENT.get().unwrap().clone().create_group(
+                            self.plant.data.plantGroup.clone(),
+                            Some(self.plant.data.plantGroup.id.to_string()),
+                        ),
+                        |_| DetailMessage::Loaded,
+                    )
                 }
-                self.modal = false;
-                self.message = DetailMessage::Pending;
             }
             DetailMessage::FieldUpdated(index, value) => match index {
                 0 => self.plant.data.name = value,
                 1 => self.plant.data.description = value,
                 2 => self.plant.data.location = value,
                 3 => self.plant.data.species = value,
-                4 => self.plant.data.plantGroup.id = value.parse().unwrap(),
+                4 => self.plant.data.plantGroup.id = value.parse().unwrap_or(1),
                 5 => self.additionalCareTips = value,
                 6 => {
                     self.plant.data.plantGroup.name = value;
@@ -621,7 +627,8 @@ impl Tab for DetailPage {
                     .push(
                         Button::new(Text::new("Gruppe bearbeiten").size(TEXT_SIZE))
                             .on_press(DetailMessage::OpenModalGroup),
-                    );
+                    )
+                    .spacing(20);
                 let chart_col = Column::new().push(row).push(container);
                 let row = Row::new()
                     .push(detail_column)
@@ -657,6 +664,10 @@ impl Tab for DetailPage {
                             .on_press(DetailMessage::PlantData(self.plant.id.clone())),
                     )
                     .spacing(20)
+                    .push(
+                        Button::new(Text::new("Refresh").size(TEXT_SIZE))
+                            .on_press(DetailMessage::Load),
+                    )
                     .align_items(Center);
                 let column = Column::new().push(id_name_column).push(row);
                 let row = Row::new().push(column).spacing(20).align_items(Center);
