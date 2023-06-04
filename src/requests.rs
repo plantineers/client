@@ -49,7 +49,7 @@ impl ApiClient {
         self,
         plant_ids: Vec<String>,
         sensor_type: String,
-    ) -> RequestResult<Vec<GraphData>> {
+    ) -> RequestResult<Vec<(GraphData, String)>> {
         let client = self.client.lock().await;
         let mut tasks = vec![];
 
@@ -79,7 +79,7 @@ impl ApiClient {
                         values.push(value.as_f64().unwrap() as i32);
                         timestamps.push(timestamp.as_str().unwrap().to_string());
                     });
-                    Ok(GraphData { values, timestamps })
+                    Ok((GraphData { values, timestamps }, plant_id))
                 } else {
                     Err("No data found".to_string())
                 }
