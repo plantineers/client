@@ -506,11 +506,6 @@ mod tests {
         tab.role_input = PlantBuddyRole::User;
 
         let client = get_api_client();
-        let _user_to_create = TempCreationUser {
-            name: tab.username_input.clone(),
-            password: tab.password_input.clone(),
-            role: tab.role_input.clone().into(),
-        };
 
         create_user_pressed(tab, client.clone());
     }
