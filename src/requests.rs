@@ -501,7 +501,7 @@ impl ApiClient {
     ///
     /// Returns a `RequestResult` indicating whether the user was updated successfully.
     pub async fn update_user(self, id: u32, user: TempCreationUser) -> RequestResult<()> {
-        let client = reqwest::Client::new();
+        let client = self.client.lock().await;
         let response = client
             .put(ENDPOINT.to_string() + &format!("user/{}", id))
             .json(&user)

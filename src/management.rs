@@ -123,7 +123,10 @@ impl ManagementTab {
                         self.error_message = String::from("Nutzername oder Passwort ist leer");
                         return Command::none();
                     }
-                    edit_user_pressed(self.clone(), username.clone(), password.clone())
+                    if let Some(client) = API_CLIENT.get() {
+                        return edit_user_pressed(self.clone(), client.clone());
+                    }
+                    return Command::none();
                 };
             }
             ManagementMessage::DeleteUserPressed(id) => {
