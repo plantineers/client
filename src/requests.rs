@@ -320,6 +320,39 @@ impl ApiClient {
 
         Ok((details, plant_group))
     }
+    /// Creates a new user with the given username, password, and user data.
+    ///
+    /// # Arguments
+    ///
+    /// * `username` - A string slice that holds the username.
+    /// * `password` - A string slice that holds the password.
+    /// * `user` - A `TempCreationUser` struct representing the user to create.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `RequestResult` indicating whether the user was created successfully.
+    pub async fn create_user(self, user: TempCreationUser) -> RequestResult<()> {
+        let client = self.client.lock().await;
+        let response = client
+            .post(ENDPOINT.to_string() + "user")
+            .json(&user)
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
+
+        let result = response.error_for_status_ref().map(|_| ());
+
+        match result {
+            Ok(_) => {
+                info!("Create user successful");
+                Ok(())
+            }
+            Err(e) => {
+                info!("Create user failed");
+                Err(e.to_string())
+            }
+        }
+    }
 }
 
 const ENDPOINT: &str = "https://pb.mfloto.com/v1/";
@@ -467,48 +500,6 @@ pub struct SensorType {
 pub struct GraphData {
     pub values: Vec<i32>,
     pub timestamps: Vec<String>,
-}
-
-/// Creates a new user with the given username, password, and user data.
-///
-/// # Arguments
-///
-/// * `username` - A string slice that holds the username.
-/// * `password` - A string slice that holds the password.
-/// * `user` - A `TempCreationUser` struct representing the user to create.
-///
-/// # Returns
-///
-/// Returns a `RequestResult` indicating whether the user was created successfully.
-pub async fn create_user(
-    username: String,
-    password: String,
-    user: TempCreationUser,
-) -> RequestResult<()> {
-    let client = reqwest::Client::new();
-    let response = client
-        .post(ENDPOINT.to_string() + "user")
-        .header(
-            "Authorization",
-            "Basic ".to_string() + &encode_credentials(username.clone(), password.clone()),
-        )
-        .json(&user)
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let result = response.error_for_status_ref().map(|_| ());
-
-    match result {
-        Ok(_) => {
-            info!("Create user successful");
-            Ok(())
-        }
-        Err(e) => {
-            info!("Create user failed");
-            Err(e.to_string())
-        }
-    }
 }
 
 /// Deletes a user with the given username, password, and ID.

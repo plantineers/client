@@ -5,9 +5,7 @@ use iced::widget::{button, container, row, scrollable, Rule};
 use iced::Alignment::{Center, End};
 
 use crate::login::PlantBuddyRole;
-use crate::requests::{
-    create_user, delete_user, update_user, ApiClient, RequestResult, TempCreationUser,
-};
+use crate::requests::{delete_user, update_user, ApiClient, RequestResult, TempCreationUser};
 use iced::widget::slider::update;
 use iced::{
     alignment::{Horizontal, Vertical},
@@ -115,7 +113,10 @@ impl ManagementTab {
                         self.error_message = String::from("Nutzername oder Passwort ist leer");
                         return Command::none();
                     }
-                    create_user_pressed(self.clone(), username.clone(), password.clone())
+                    if let Some(client) = API_CLIENT.get() {
+                        return create_user_pressed(self.clone(), client.clone());
+                    }
+                    return Command::none();
                 } else {
                     // Editing mode
                     if self.username_input.is_empty() || self.password_input.is_empty() {
@@ -438,11 +439,7 @@ impl Tab for ManagementTab {
 /// * `password` - The password of the user that is creating the new user.
 /// # Returns
 /// A command to create the user.
-fn create_user_pressed(
-    plantbuddy: ManagementTab,
-    username: String,
-    password: String,
-) -> Command<ManagementMessage> {
+fn create_user_pressed(plantbuddy: ManagementTab, client: ApiClient) -> Command<ManagementMessage> {
     let user_to_create = TempCreationUser {
         name: plantbuddy.username_input.clone(),
         password: plantbuddy.password_input.clone(),
@@ -450,7 +447,7 @@ fn create_user_pressed(
     };
 
     Command::perform(
-        create_user(username, password, user_to_create),
+        client.create_user(user_to_create),
         ManagementMessage::UserCreated,
     )
 }
