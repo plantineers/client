@@ -491,7 +491,6 @@ fn edit_user_pressed(plantbuddy: ManagementTab, client: ApiClient) -> Command<Ma
 mod tests {
     use super::*;
     use crate::requests::ApiClient;
-    
 
     fn get_api_client() -> ApiClient {
         let username = "testuser".to_string();
@@ -512,8 +511,6 @@ mod tests {
             password: tab.password_input.clone(),
             role: tab.role_input.clone().into(),
         };
-        let _username = "test_username".to_string();
-        let _password = "test_password".to_string();
 
         create_user_pressed(tab, client.clone());
     }
@@ -521,8 +518,6 @@ mod tests {
     #[tokio::test]
     async fn test_delete_user_pressed() {
         let client = get_api_client();
-        let _username = "test_username".to_string();
-        let _password = "test_password".to_string();
         let id = 1;
 
         delete_user_pressed(id, client.clone());
@@ -532,8 +527,6 @@ mod tests {
     async fn test_edit_user_pressed() {
         let client = get_api_client();
 
-        let _username = "test_username".to_string();
-        let _password = "test_password".to_string();
         let mut tab = ManagementTab::new();
         tab.editing_user = Some(User {
             id: 5,
