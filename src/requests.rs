@@ -25,7 +25,7 @@ impl ApiClient {
     #[must_use]
     pub fn new(username: String, password: String) -> Self {
         // Make a new client with the given username and password as base64 encoded credentials in the headers
-        let client = reqwest::Client::builder()
+        let client = Client::builder()
             .default_headers({
                 let mut headers = reqwest::header::HeaderMap::new();
                 headers.insert(
@@ -57,9 +57,10 @@ impl ApiClient {
             let type_clone = sensor_type.clone();
             let client = client.clone();
             let task = tokio::spawn(async move {
+                //TODO: Make this endpoint configurable, current time
                 let response = client
                     .get(&format!(
-                        "{}sensor-data?sensor={}&plant={}&from=2019-01-01T00:00:00.000Z&to=2023-05-29T23:00:00.000Z",
+                        "{}sensor-data?sensor={}&plant={}&from=2019-01-01T00:00:00.000Z&to=2023-07-29T23:00:00.000Z",
                         ENDPOINT, type_clone, plant_id
                     ))
                     // FIXME: We should stop leaking the authentication data here, but for the testing DB it's fine for now
@@ -74,10 +75,17 @@ impl ApiClient {
                     let mut values = vec![];
                     let mut timestamps = vec![];
                     data.as_array().unwrap().iter().for_each(|x| {
-                        let value = x.get("value").unwrap();
-                        let timestamp = x.get("timestamp").unwrap();
-                        values.push(value.as_f64().unwrap() as i32);
-                        timestamps.push(timestamp.as_str().unwrap().to_string());
+                        if type_clone != "humidity" {
+                            let value = x.get("value").unwrap();
+                            let timestamp = x.get("timestamp").unwrap();
+                            values.push(value.as_f64().unwrap() as i32);
+                            timestamps.push(timestamp.as_str().unwrap().to_string());
+                        } else {
+                            let value = x.get("value").unwrap();
+                            let timestamp = x.get("timestamp").unwrap();
+                            values.push((value.as_f64().unwrap() * 100.0) as i32);
+                            timestamps.push(timestamp.as_str().unwrap().to_string());
+                        }
                     });
                     Ok((GraphData { values, timestamps }, plant_id))
                 } else {

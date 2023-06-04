@@ -45,7 +45,7 @@ pub(crate) struct HomePage {
     ids: Vec<String>,
     id_names: Vec<(String, String)>,
     names: Vec<String>,
-    sensor_data: HashMap<String, Vec<GraphData>>,
+    sensor_data: HashMap<String, (Vec<GraphData>, Vec<String>)>,
 }
 
 impl HomePage {
@@ -117,22 +117,28 @@ impl HomePage {
                         .clone()
                         .get_graphs(self.ids.clone(), sensortypes.get_name())
                         .unwrap();
-                    let graph_data: Vec<GraphData> = data.iter().map(|(g, _)| g.clone()).collect();
-                    self.sensor_data
-                        .insert(sensortypes.get_name(), graph_data.clone());
                     // Collect names from id_names if id is in data
                     self.names = self
                         .id_names
                         .iter()
-                        .filter(|(id, _)| data.iter().any(|(g, i)| i == id))
+                        .filter(|(id, _)| data.iter().any(|(_, i)| i == id))
                         .map(|(_, name)| name.clone())
                         .collect_vec();
+                    // Collect graph_data from data and pair with names
+                    graph_data = data.iter().map(|(g, _)| g.clone()).collect();
+                    self.sensor_data.insert(
+                        sensortypes.get_name(),
+                        (graph_data.clone(), self.names.clone()),
+                    );
                 } else {
-                    graph_data = self
+                    info!("Sensor data not in HashMap");
+                    let data = self
                         .sensor_data
                         .get(sensortypes.get_name().as_str())
                         .unwrap()
                         .clone();
+                    graph_data = data.0;
+                    self.names = data.1;
                 }
                 self.charts = PlantCharts::update_charts(
                     &self.charts.clone(),

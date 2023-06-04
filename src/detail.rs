@@ -627,7 +627,8 @@ impl Tab for DetailPage {
                     .push(
                         Button::new(Text::new("Gruppe bearbeiten").size(TEXT_SIZE))
                             .on_press(DetailMessage::OpenModalGroup),
-                    );
+                    )
+                    .spacing(20);
                 let chart_col = Column::new().push(row).push(container);
                 let row = Row::new()
                     .push(detail_column)
