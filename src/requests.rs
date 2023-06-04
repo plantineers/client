@@ -18,14 +18,21 @@ use tokio::sync::Mutex;
 /// The client is wrapped in an Arc<Mutex<reqwest::Client>> to allow for concurrent access using tokio to avoid deadlocks
 #[derive(Clone, Debug)]
 pub(crate) struct ApiClient {
-    client: Arc<Mutex<reqwest::Client>>,
+    client: Arc<Mutex<Client>>,
 }
 
 impl ApiClient {
     #[must_use]
     pub fn new(username: String, password: String) -> Self {
-        // Make a new client with the given username and password as base64 encoded credentials in the headers
-        let client = Client::builder()
+        Self {
+            client: Arc::new(Mutex::new(Self::build_client(
+                username.clone(),
+                password.clone(),
+            ))),
+        }
+    }
+    fn build_client(username: String, password: String) -> Client {
+        Client::builder()
             .default_headers({
                 let mut headers = reqwest::header::HeaderMap::new();
                 headers.insert(
@@ -39,10 +46,12 @@ impl ApiClient {
                 headers
             })
             .build()
-            .unwrap();
-        Self {
-            client: Arc::new(Mutex::new(client)),
-        }
+            .unwrap()
+    }
+    pub fn replace_inner(self, username: String, password: String) {
+        let new_client = Self::build_client(username, password);
+        let mut client_lock = self.client.lock().await;
+        *client_lock = new_client
     }
     #[tokio::main(flavor = "current_thread")]
     pub async fn get_graphs(
