@@ -1,8 +1,8 @@
 use crate::detail::Sensortypes;
-use crate::graphs::{PlantChart, PlantCharts};
+use crate::graphs::{PlantCharts};
 
 use crate::requests::{GraphData, PlantGroupMetadata, PlantMetadata};
-use crate::Message::Home;
+
 use crate::{Icon, Message, MyStylesheet, Tab, API_CLIENT, TEXT_SIZE};
 use iced::alignment::{Horizontal, Vertical};
 use iced::futures::TryFutureExt;

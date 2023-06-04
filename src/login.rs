@@ -301,7 +301,7 @@ mod tests {
         let mut login_tab = LoginTab::new();
         login_tab.password = "test".to_string();
         let message = LoginMessage::LoginPressed;
-        let command = login_tab.update(message);
+        let _command = login_tab.update(message);
         assert_eq!(login_tab.login_failed, true);
         assert_eq!(
             login_tab.last_error_massage,
@@ -314,7 +314,7 @@ mod tests {
         let mut login_tab = LoginTab::new();
         login_tab.username = "test".to_string();
         let message = LoginMessage::LoginPressed;
-        let command = login_tab.update(message);
+        let _command = login_tab.update(message);
         assert_eq!(login_tab.login_failed, true);
         assert_eq!(
             login_tab.last_error_massage,
@@ -328,7 +328,7 @@ mod tests {
         login_tab.username = "test".to_string();
         login_tab.password = "test".to_string();
         let message = LoginMessage::Login(Err("test".to_string()));
-        let command = login_tab.update(message);
+        let _command = login_tab.update(message);
         assert_eq!(login_tab.login_failed, true);
         assert_eq!(login_tab.last_error_massage, "Server-Fehler");
     }
