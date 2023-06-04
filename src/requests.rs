@@ -14,6 +14,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, to_string, Value};
 use tokio::sync::Mutex;
 
+/// The endpoint of our API
+const ENDPOINT: &str = "https://pb.mfloto.com/v1/";
+
+/// Represents the result of a request.
+pub type RequestResult<T> = Result<T, String>;
+
 /// Our Api client that keeps our client and credentials to avoid reencoding and redoing name resolutions
 /// The client is wrapped in an Arc<Mutex<reqwest::Client>> to allow for concurrent access using tokio to avoid deadlocks
 #[derive(Clone, Debug)]
@@ -353,9 +359,73 @@ impl ApiClient {
             }
         }
     }
-}
+    /// Deletes a user with the given username, password, and ID.
+    ///
+    /// # Arguments
+    ///
+    /// * `username` - A string slice that holds the username.
+    /// * `password` - A string slice that holds the password.
+    /// * `id` - The ID of the user to delete.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `RequestResult` indicating whether the user was deleted successfully.
+    pub async fn delete_user(self, id: u32) -> RequestResult<()> {
+        let client = self.client.lock().await;
+        let response = client
+            .delete(ENDPOINT.to_string() + &format!("user/{}", id))
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
 
-const ENDPOINT: &str = "https://pb.mfloto.com/v1/";
+        let result = response.error_for_status_ref().map(|_| ());
+
+        match result {
+            Ok(_) => {
+                info!("Delete user successful");
+                Ok(())
+            }
+            Err(e) => {
+                info!("Delete user failed");
+                Err(e.to_string())
+            }
+        }
+    }
+    /// Updates a user with the given username, password, ID, and user data.
+    ///
+    /// # Arguments
+    ///
+    /// * `username` - A string slice that holds the username.
+    /// * `password` - A string slice that holds the password.
+    /// * `id` - The ID of the user to update.
+    /// * `user` - A `TempCreationUser` struct representing the updated user data.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `RequestResult` indicating whether the user was updated successfully.
+    pub async fn update_user(self, id: u32, user: TempCreationUser) -> RequestResult<()> {
+        let client = reqwest::Client::new();
+        let response = client
+            .put(ENDPOINT.to_string() + &format!("user/{}", id))
+            .json(&user)
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
+
+        let result = response.error_for_status_ref().map(|_| ());
+
+        match result {
+            Ok(_) => {
+                info!("Update user successful");
+                Ok(())
+            }
+            Err(e) => {
+                info!("Update user failed");
+                Err(e.to_string())
+            }
+        }
+    }
+}
 
 /// Represents a temporary user returned by the login API.
 #[derive(Deserialize, Debug)]
@@ -372,9 +442,6 @@ pub struct TempCreationUser {
     pub(crate) password: String,
     pub(crate) role: u64,
 }
-
-/// Represents the result of a request.
-pub type RequestResult<T> = Result<T, String>;
 
 /// Logs in a user with the given username and password.
 ///
@@ -500,87 +567,6 @@ pub struct SensorType {
 pub struct GraphData {
     pub values: Vec<i32>,
     pub timestamps: Vec<String>,
-}
-
-/// Deletes a user with the given username, password, and ID.
-///
-/// # Arguments
-///
-/// * `username` - A string slice that holds the username.
-/// * `password` - A string slice that holds the password.
-/// * `id` - The ID of the user to delete.
-///
-/// # Returns
-///
-/// Returns a `RequestResult` indicating whether the user was deleted successfully.
-pub async fn delete_user(username: String, password: String, id: u32) -> RequestResult<()> {
-    let client = reqwest::Client::new();
-    let response = client
-        .delete(ENDPOINT.to_string() + &format!("user/{}", id))
-        .header(
-            "Authorization",
-            "Basic ".to_string() + &encode_credentials(username.clone(), password.clone()),
-        )
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let result = response.error_for_status_ref().map(|_| ());
-
-    match result {
-        Ok(_) => {
-            info!("Delete user successful");
-            Ok(())
-        }
-        Err(e) => {
-            info!("Delete user failed");
-            Err(e.to_string())
-        }
-    }
-}
-
-/// Updates a user with the given username, password, ID, and user data.
-///
-/// # Arguments
-///
-/// * `username` - A string slice that holds the username.
-/// * `password` - A string slice that holds the password.
-/// * `id` - The ID of the user to update.
-/// * `user` - A `TempCreationUser` struct representing the updated user data.
-///
-/// # Returns
-///
-/// Returns a `RequestResult` indicating whether the user was updated successfully.
-pub async fn update_user(
-    username: String,
-    password: String,
-    id: u32,
-    user: TempCreationUser,
-) -> RequestResult<()> {
-    let client = reqwest::Client::new();
-    let response = client
-        .put(ENDPOINT.to_string() + &format!("user/{}", id))
-        .header(
-            "Authorization",
-            "Basic ".to_string() + &encode_credentials(username.clone(), password.clone()),
-        )
-        .json(&user)
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let result = response.error_for_status_ref().map(|_| ());
-
-    match result {
-        Ok(_) => {
-            info!("Update user successful");
-            Ok(())
-        }
-        Err(e) => {
-            info!("Update user failed");
-            Err(e.to_string())
-        }
-    }
 }
 
 /// Encodes the given username and password as a Base64-encoded string.

@@ -5,7 +5,7 @@ use iced::widget::{button, container, row, scrollable, Rule};
 use iced::Alignment::{Center, End};
 
 use crate::login::PlantBuddyRole;
-use crate::requests::{delete_user, update_user, ApiClient, RequestResult, TempCreationUser};
+use crate::requests::{ApiClient, RequestResult, TempCreationUser};
 use iced::widget::slider::update;
 use iced::{
     alignment::{Horizontal, Vertical},
@@ -129,7 +129,11 @@ impl ManagementTab {
             ManagementMessage::DeleteUserPressed(id) => {
                 self.error_message = String::new();
                 self.notify_message = String::new();
-                return delete_user_pressed(id.clone(), username.clone(), password.clone());
+                if let Some(client) = API_CLIENT.get() {
+                    return delete_user_pressed(id.clone(), client.clone());
+                }
+                self.error_message = String::from("Fehler beim Löschen des Nutzers");
+                return Command::none();
             }
             ManagementMessage::RoleChanged(role) => {
                 self.error_message = String::new();
@@ -150,6 +154,7 @@ impl ManagementTab {
                 if let Some(client) = API_CLIENT.get() {
                     return get_all_users_pressed(client.clone());
                 }
+                return Command::none();
             }
             ManagementMessage::UserCreated(result) => match result {
                 Ok(_) => {
@@ -460,11 +465,8 @@ fn create_user_pressed(plantbuddy: ManagementTab, client: ApiClient) -> Command<
 /// * `password` - The password of the user that is deleting the user.
 /// # Returns
 /// A command to delete the user.
-fn delete_user_pressed(id: u32, username: String, password: String) -> Command<ManagementMessage> {
-    Command::perform(
-        delete_user(username, password, id),
-        ManagementMessage::UserDeleted,
-    )
+fn delete_user_pressed(id: u32, client: ApiClient) -> Command<ManagementMessage> {
+    Command::perform(client.delete_user(id), ManagementMessage::UserDeleted)
 }
 
 fn get_all_users_pressed(client: ApiClient) -> Command<ManagementMessage> {
@@ -479,11 +481,7 @@ fn get_all_users_pressed(client: ApiClient) -> Command<ManagementMessage> {
 /// * `password` - The password of the user that is updating the user.
 /// # Returns
 /// A command to update the user.
-fn edit_user_pressed(
-    plantbuddy: ManagementTab,
-    username: String,
-    password: String,
-) -> Command<ManagementMessage> {
+fn edit_user_pressed(plantbuddy: ManagementTab, client: ApiClient) -> Command<ManagementMessage> {
     let user_to_edit = TempCreationUser {
         name: plantbuddy.username_input.clone(),
         password: plantbuddy.password_input.clone(),
@@ -491,12 +489,7 @@ fn edit_user_pressed(
     };
 
     Command::perform(
-        update_user(
-            username,
-            password,
-            plantbuddy.editing_user.clone().unwrap().id,
-            user_to_edit,
-        ),
+        client.update_user(plantbuddy.editing_user.clone().unwrap().id, user_to_edit),
         ManagementMessage::UserEdited,
     )
 }
