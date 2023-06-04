@@ -65,6 +65,7 @@ pub enum DetailMessage {
 }
 
 pub(crate) struct DetailPage {
+    pub timerange: (String, String),
     pub modal: bool,
     pub modal_is_plant: bool,
     pub additionalCareTips: String,
@@ -134,10 +135,16 @@ impl DetailPage {
         };
         DetailPage {
             id_names: vec![],
+            timerange: (
+                "2019-01-01T00:00:00.000Z".to_string(),
+                chrono::offset::Local::now()
+                    .format("%Y-%m-%dT%H:%M:%S.000Z")
+                    .to_string(),
+            ),
             modal: false,
             modal_is_plant: true,
             careTips: String::new(),
-            sensor_border: vec![],
+            sensor_border: vec!["".to_string(); 3],
             additionalCareTips: String::new(),
             plant,
             message: DetailMessage::Pending,
@@ -208,7 +215,12 @@ impl DetailPage {
                     .get()
                     .unwrap()
                     .clone()
-                    .get_graphs(vec![id.clone()], Sensortypes::Feuchtigkeit.get_name())
+                    .get_graphs(
+                        vec![id.clone()],
+                        true,
+                        Sensortypes::Feuchtigkeit.get_name(),
+                        self.timerange.clone(),
+                    )
                     .unwrap_or_default();
                 let graph_data: Vec<GraphData> = data.iter().map(|(g, _)| g.clone()).collect();
                 self.plant = DetailPlant::new(id, graph_data);
@@ -220,13 +232,23 @@ impl DetailPage {
                     self.careTips.push_str(x);
                     self.careTips.push(';');
                 });
+                //TODO: Rewrite this to be more generic; order is important now; use hashmap!!
                 self.plant
                     .data
                     .plantGroup
                     .sensorRanges
                     .iter()
-                    .for_each(|x| {
-                        self.sensor_border.push(format!("{};{}", x.max, x.min));
+                    .for_each(|x| match x.sensorType.name.as_str() {
+                        "soil-moisture" => {
+                            self.sensor_border[1] = format!("{};{}", x.max, x.min);
+                        }
+                        "humidity" => {
+                            self.sensor_border[0] = format!("{};{}", x.max, x.min);
+                        }
+                        "temperature" => {
+                            self.sensor_border[2] = format!("{};{}", x.max, x.min);
+                        }
+                        _ => {}
                     });
                 self.plant
                     .charts
@@ -240,7 +262,12 @@ impl DetailPage {
                     .get()
                     .unwrap()
                     .clone()
-                    .get_graphs(vec![self.plant.id.clone()], sensor_name)
+                    .get_graphs(
+                        vec![self.plant.id.clone()],
+                        true,
+                        sensor_name,
+                        self.timerange.clone(),
+                    )
                     .unwrap_or_default();
                 let graph_data: Vec<GraphData> = data.iter().map(|(g, _)| g.clone()).collect();
                 self.plant.charts = PlantCharts::update_charts(
@@ -292,7 +319,7 @@ impl DetailPage {
                         self.careTips.split(';').map(|x| x.to_string()).collect();
                     for (i, sensor) in enumerate(self.plant.data.plantGroup.sensorRanges.iter_mut())
                     {
-                        sensor.max = self.sensor_border.clone()[i]
+                        sensor.max = self.sensor_border.clone()[i.clone()]
                             .split(';')
                             .next()
                             .unwrap()
@@ -332,10 +359,10 @@ impl DetailPage {
                     self.careTips = value;
                 }
                 9 => {
-                    self.sensor_border[0] = value;
+                    self.sensor_border[1] = value;
                 }
                 10 => {
-                    self.sensor_border[1] = value;
+                    self.sensor_border[0] = value;
                 }
                 11 => {
                     self.sensor_border[2] = value;
@@ -464,6 +491,7 @@ impl Tab for DetailPage {
                         .align_x(Horizontal::Center)
                         .align_y(Vertical::Center);
                 let content: Element<'_, DetailMessage> = Modal::new(self.modal, container, || {
+                    // Todo: Is there a possibility to make this more generic?
                     Card::new(
                         Text::new("Gruppe bearbeiten")
                             .size(TEXT_SIZE)
@@ -495,14 +523,14 @@ impl Tab for DetailPage {
                                     .size(TEXT_SIZE),
                             )
                             .push(
-                                TextInput::new("Feuchtigkeitsgrenzwerte", &self.sensor_border[0])
+                                TextInput::new("Feuchtigkeitsgrenzwerte", &self.sensor_border[1])
                                     .size(TEXT_SIZE)
                                     .on_input(|input| DetailMessage::FieldUpdated(9, input)),
                             )
                             .push(
                                 TextInput::new(
                                     "Luftfeuchtigkeitsgrenzwerte",
-                                    &self.sensor_border[1],
+                                    &self.sensor_border[0],
                                 )
                                 .size(TEXT_SIZE)
                                 .on_input(|input| DetailMessage::FieldUpdated(10, input)),

@@ -157,25 +157,46 @@ impl ApiClient {
     #[tokio::main(flavor = "current_thread")]
     pub async fn get_graphs(
         self,
-        plant_ids: Vec<String>,
+        ids: Vec<String>,
+        plant: bool,
         sensor_type: String,
+        time_range: (String, String),
     ) -> RequestResult<Vec<(GraphData, String)>> {
         let client = self.client.lock().await;
         let mut tasks = vec![];
 
-        for plant_id in plant_ids {
+        for id in ids {
             let type_clone = sensor_type.clone();
+            let time_range_clone = time_range.clone();
+            info!("Getting time range: {:?}", time_range_clone);
             let client = client.clone();
+            let mut parameter = String::new();
+            if plant {
+                parameter = format!(
+                    "{}sensor-data?sensor={}&plant={}&from={}&to={}",
+                    ENDPOINT,
+                    type_clone,
+                    id,
+                    time_range_clone.0.clone(),
+                    time_range_clone.1.clone()
+                );
+            } else {
+                parameter = format!(
+                    "{}sensor-data?sensor={}&plantGroup={}&from={}&to={}",
+                    ENDPOINT,
+                    type_clone,
+                    id,
+                    time_range_clone.0.clone(),
+                    time_range_clone.1.clone()
+                );
+            }
             let task = tokio::spawn(async move {
                 //TODO: Make this endpoint configurable, current time
                 let response = client
-                    .get(&format!(
-                        "{}sensor-data?sensor={}&plant={}&from=2019-01-01T00:00:00.000Z&to=2023-07-29T23:00:00.000Z",
-                        ENDPOINT, type_clone, plant_id
-                    ))
-                    // FIXME: We should stop leaking the authentication data here, but for the testing DB it's fine for now
+                    .get(parameter)
                     .send()
-                    .await.map_err(|e| e.to_string())?;
+                    .await
+                    .map_err(|e| e.to_string())?;
 
                 let text = response.text().await.map_err(|e| e.to_string())?;
                 // FIXME: If we can get no data back the return type of our function should be an Option
@@ -197,7 +218,7 @@ impl ApiClient {
                             timestamps.push(timestamp.as_str().unwrap().to_string());
                         }
                     });
-                    Ok((GraphData { values, timestamps }, plant_id))
+                    Ok((GraphData { values, timestamps }, id))
                 } else {
                     Err("No data found".to_string())
                 }
