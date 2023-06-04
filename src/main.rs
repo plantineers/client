@@ -335,8 +335,8 @@ mod tests {
     fn test_login_state() {
         let (mut plantbuddy, _) = Plantbuddy::new(());
         let user = TempCreationUser {
-            name: "test".to_string(),
-            password: "test".to_string(),
+            name: "testuser".to_string(),
+            password: "testpassword".to_string(),
             role: PlantBuddyRole::User.into(),
         };
 
