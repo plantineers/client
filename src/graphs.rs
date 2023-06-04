@@ -1,4 +1,4 @@
-use crate::detail::{DetailPage, Sensortypes};
+use crate::detail::{Sensortypes};
 use crate::requests::GraphData;
 use crate::TEXT_SIZE;
 use iced::{Element, Length};
