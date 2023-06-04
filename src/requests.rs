@@ -48,8 +48,7 @@ impl ApiClient {
             .build()
             .unwrap()
     }
-    #[tokio::main(flavor = "current_thread")]
-    pub async fn replace_inner(self, username: String, password: String) {
+    pub fn replace_inner(self, username: String, password: String) {
         let new_client = Self::build_client(username, password);
         let mut client_lock = self.client.lock().await;
         *client_lock = new_client
