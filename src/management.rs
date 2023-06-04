@@ -4,14 +4,11 @@ use iced::widget::{scrollable, Rule};
 use iced::Alignment::Center;
 
 use crate::login::PlantBuddyRole;
-use crate::requests::{
-    create_user, delete_user, update_user, ApiClient, RequestResult, TempCreationUser,
-};
-use iced::Command;
+use crate::requests::{ApiClient, RequestResult, TempCreationUser};
 use iced::{
     alignment::{Horizontal, Vertical},
     widget::{radio, Button, Column, Container, Row, Text, TextInput},
-    Color, Element, Length,
+    Color, Command, Element, Length,
 };
 use iced_aw::TabLabel;
 
@@ -88,9 +85,6 @@ impl ManagementTab {
     /// Updates the state of the ManagementTab based on a given message.
     /// Returns a command to be run by the runtime, such as API calls to create or delete users.
     pub fn update(&mut self, message: ManagementMessage) -> Command<ManagementMessage> {
-        let username = self.logged_in_user.name.clone();
-        let password = self.logged_in_user.password.clone();
-
         match message {
             ManagementMessage::UsernameChanged(username) => {
                 self.username_input = username;
@@ -110,20 +104,30 @@ impl ManagementTab {
                         self.error_message = String::from("Nutzername oder Passwort ist leer");
                         return Command::none();
                     }
-                    create_user_pressed(self.clone(), username, password)
+                    if let Some(client) = API_CLIENT.get() {
+                        return create_user_pressed(self.clone(), client.clone());
+                    }
+                    Command::none()
                 } else {
                     // Editing mode
                     if self.username_input.is_empty() || self.password_input.is_empty() {
                         self.error_message = String::from("Nutzername oder Passwort ist leer");
                         return Command::none();
                     }
-                    edit_user_pressed(self.clone(), username, password)
+                    if let Some(client) = API_CLIENT.get() {
+                        return edit_user_pressed(self.clone(), client.clone());
+                    }
+                    Command::none()
                 };
             }
             ManagementMessage::DeleteUserPressed(id) => {
                 self.error_message = String::new();
                 self.notify_message = String::new();
-                return delete_user_pressed(id, username, password);
+                if let Some(client) = API_CLIENT.get() {
+                    return delete_user_pressed(id.clone(), client.clone());
+                }
+                self.error_message = String::from("Fehler beim Löschen des Nutzers");
+                return Command::none();
             }
             ManagementMessage::RoleChanged(role) => {
                 self.error_message = String::new();
@@ -144,6 +148,7 @@ impl ManagementTab {
                 if let Some(client) = API_CLIENT.get() {
                     return get_all_users_pressed(client.clone());
                 }
+                return Command::none();
             }
             ManagementMessage::UserCreated(result) => match result {
                 Ok(_) => {
@@ -433,11 +438,7 @@ impl Tab for ManagementTab {
 /// * `password` - The password of the user that is creating the new user.
 /// # Returns
 /// A command to create the user.
-fn create_user_pressed(
-    plantbuddy: ManagementTab,
-    username: String,
-    password: String,
-) -> Command<ManagementMessage> {
+fn create_user_pressed(plantbuddy: ManagementTab, client: ApiClient) -> Command<ManagementMessage> {
     let user_to_create = TempCreationUser {
         name: plantbuddy.username_input.clone(),
         password: plantbuddy.password_input.clone(),
@@ -445,7 +446,7 @@ fn create_user_pressed(
     };
 
     Command::perform(
-        create_user(username, password, user_to_create),
+        client.create_user(user_to_create),
         ManagementMessage::UserCreated,
     )
 }
@@ -458,11 +459,8 @@ fn create_user_pressed(
 /// * `password` - The password of the user that is deleting the user.
 /// # Returns
 /// A command to delete the user.
-fn delete_user_pressed(id: u32, username: String, password: String) -> Command<ManagementMessage> {
-    Command::perform(
-        delete_user(username, password, id),
-        ManagementMessage::UserDeleted,
-    )
+fn delete_user_pressed(id: u32, client: ApiClient) -> Command<ManagementMessage> {
+    Command::perform(client.delete_user(id), ManagementMessage::UserDeleted)
 }
 
 fn get_all_users_pressed(client: ApiClient) -> Command<ManagementMessage> {
@@ -477,11 +475,7 @@ fn get_all_users_pressed(client: ApiClient) -> Command<ManagementMessage> {
 /// * `password` - The password of the user that is updating the user.
 /// # Returns
 /// A command to update the user.
-fn edit_user_pressed(
-    plantbuddy: ManagementTab,
-    username: String,
-    password: String,
-) -> Command<ManagementMessage> {
+fn edit_user_pressed(plantbuddy: ManagementTab, client: ApiClient) -> Command<ManagementMessage> {
     let user_to_edit = TempCreationUser {
         name: plantbuddy.username_input.clone(),
         password: plantbuddy.password_input.clone(),
@@ -489,64 +483,55 @@ fn edit_user_pressed(
     };
 
     Command::perform(
-        update_user(
-            username,
-            password,
-            plantbuddy.editing_user.unwrap().id,
-            user_to_edit,
-        ),
+        client.update_user(plantbuddy.editing_user.unwrap().id, user_to_edit),
         ManagementMessage::UserEdited,
     )
 }
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::requests::ApiClient;
+    use std::sync::OnceLock;
 
-    async fn create_user(
-        _username: String,
-        _password: String,
-        _user: TempCreationUser,
-    ) -> Result<(), ()> {
-        Ok(())
-    }
-
-    async fn delete_user(_username: String, _password: String, _id: u32) -> Result<(), ()> {
-        Ok(())
-    }
-
-    async fn get_all_users(_username: String, _password: String) -> Result<Vec<User>, ()> {
-        Ok(Vec::new())
-    }
-
-    async fn update_user(
-        _username: String,
-        _password: String,
-        _id: u32,
-        _user: TempCreationUser,
-    ) -> Result<(), ()> {
-        Ok(())
+    fn get_api_client() -> ApiClient {
+        let username = "testuser".to_string();
+        let password = "testpassword".to_string();
+        return ApiClient::new(username, password);
     }
 
     #[tokio::test]
     async fn test_create_user_pressed() {
+        let mut tab = ManagementTab::new();
+        tab.username_input = "test_username".to_string();
+        tab.password_input = "test_password".to_string();
+        tab.role_input = PlantBuddyRole::User;
+
+        let client = get_api_client();
+        let user_to_create = TempCreationUser {
+            name: tab.username_input.clone(),
+            password: tab.password_input.clone(),
+            role: tab.role_input.clone().into(),
+        };
         let username = "test_username".to_string();
         let password = "test_password".to_string();
-        let tab = ManagementTab::new();
 
-        create_user_pressed(tab, username, password);
+        create_user_pressed(tab, client.clone());
     }
 
     #[tokio::test]
     async fn test_delete_user_pressed() {
+        let client = get_api_client();
         let username = "test_username".to_string();
         let password = "test_password".to_string();
         let id = 1;
 
-        delete_user_pressed(id, username, password);
+        delete_user_pressed(id, client.clone());
     }
 
     #[tokio::test]
     async fn test_edit_user_pressed() {
+        let client = get_api_client();
+
         let username = "test_username".to_string();
         let password = "test_password".to_string();
         let mut tab = ManagementTab::new();
@@ -557,6 +542,6 @@ mod tests {
             role: PlantBuddyRole::User,
         });
 
-        edit_user_pressed(tab, username, password);
+        edit_user_pressed(tab, client.clone());
     }
 }

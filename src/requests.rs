@@ -2,17 +2,116 @@ use std::sync::Arc;
 // TODO: Give user not hardcoded credentials
 use crate::login::PlantBuddyRole;
 use crate::management::User;
-use base64::{
-    engine::{self, general_purpose},
-    Engine as _,
-};
+use base64::{engine::general_purpose, Engine as _};
 use iced::futures::future::join_all;
 use itertools::enumerate;
 use log::info;
-use reqwest::{Client, Request};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, to_string, Value};
+use serde_json::{json, Value};
 use tokio::sync::Mutex;
+
+/// The endpoint of our API
+const ENDPOINT: &str = "https://pb.mfloto.com/v1/";
+
+/// Represents the result of a request.
+pub type RequestResult<T> = Result<T, String>;
+
+#[derive(Deserialize, Debug, Clone, Default, Serialize)]
+pub struct PlantMetadata {
+    pub name: String,
+    pub description: String,
+    pub species: String,
+    pub location: String,
+    pub additionalCareTips: Vec<String>,
+    #[serde(skip_serializing)]
+    pub plantGroup: PlantGroupMetadata,
+}
+
+#[derive(Deserialize, Debug, Clone, Serialize)]
+pub struct PlantGroupMetadata {
+    #[serde(skip_serializing)]
+    pub id: i32,
+    pub name: String,
+    pub description: String,
+    pub careTips: Vec<String>,
+    pub sensorRanges: Vec<SensorRange>,
+}
+impl Default for PlantGroupMetadata {
+    fn default() -> Self {
+        PlantGroupMetadata {
+            id: 0,
+            name: String::new(),
+            description: String::new(),
+            careTips: vec![],
+            //TODO: Curse you hardcoded values
+            sensorRanges: vec![
+                SensorRange {
+                    sensorType: SensorType {
+                        name: "soil-moisture".to_string(),
+                        unit: "percent".to_string(),
+                    },
+                    min: 0,
+                    max: 0,
+                },
+                SensorRange {
+                    sensorType: SensorType {
+                        name: "humidity".to_string(),
+                        unit: "percent".to_string(),
+                    },
+                    min: 0,
+                    max: 0,
+                },
+                SensorRange {
+                    sensorType: SensorType {
+                        name: "temperature".to_string(),
+                        unit: "celcius".to_string(),
+                    },
+                    min: 0,
+                    max: 0,
+                },
+            ],
+        }
+    }
+}
+
+/// Represents a the SensorRagen for a given SensorType
+#[derive(Deserialize, Debug, Clone, Default, Serialize)]
+pub struct SensorRange {
+    #[serde(skip_serializing)]
+    pub sensorType: SensorType,
+    pub min: i32,
+    pub max: i32,
+}
+
+/// Represents a sensor type
+#[derive(Deserialize, Debug, Clone, Default, Serialize)]
+pub struct SensorType {
+    pub name: String,
+    pub unit: String,
+}
+
+/// Represents Graphs data to display
+#[derive(Deserialize, Debug, Clone)]
+pub struct GraphData {
+    pub values: Vec<i32>,
+    pub timestamps: Vec<String>,
+}
+
+/// Represents a temporary user returned by the login API.
+#[derive(Deserialize, Debug)]
+struct TempUser {
+    id: u32,
+    name: String,
+    role: u64,
+}
+
+/// Represents a temporary user used to create a new user.
+#[derive(Deserialize, Debug, Serialize, Clone, Default)]
+pub struct TempCreationUser {
+    pub(crate) name: String,
+    pub(crate) password: String,
+    pub(crate) role: u64,
+}
 
 /// Our Api client that keeps our client and credentials to avoid reencoding and redoing name resolutions
 /// The client is wrapped in an Arc<Mutex<reqwest::Client>> to allow for concurrent access using tokio to avoid deadlocks
@@ -337,28 +436,106 @@ impl ApiClient {
 
         Ok((details, plant_group))
     }
+    /// Creates a new user with the given username, password, and user data.
+    ///
+    /// # Arguments
+    ///
+    /// * `username` - A string slice that holds the username.
+    /// * `password` - A string slice that holds the password.
+    /// * `user` - A `TempCreationUser` struct representing the user to create.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `RequestResult` indicating whether the user was created successfully.
+    pub async fn create_user(self, user: TempCreationUser) -> RequestResult<()> {
+        let client = self.client.lock().await;
+        let response = client
+            .post(ENDPOINT.to_string() + "user")
+            .json(&user)
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
+
+        let result = response.error_for_status_ref().map(|_| ());
+
+        match result {
+            Ok(_) => {
+                info!("Create user successful");
+                Ok(())
+            }
+            Err(e) => {
+                info!("Create user failed");
+                Err(e.to_string())
+            }
+        }
+    }
+    /// Deletes a user with the given username, password, and ID.
+    ///
+    /// # Arguments
+    ///
+    /// * `username` - A string slice that holds the username.
+    /// * `password` - A string slice that holds the password.
+    /// * `id` - The ID of the user to delete.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `RequestResult` indicating whether the user was deleted successfully.
+    pub async fn delete_user(self, id: u32) -> RequestResult<()> {
+        let client = self.client.lock().await;
+        let response = client
+            .delete(ENDPOINT.to_string() + &format!("user/{}", id))
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
+
+        let result = response.error_for_status_ref().map(|_| ());
+
+        match result {
+            Ok(_) => {
+                info!("Delete user successful");
+                Ok(())
+            }
+            Err(e) => {
+                info!("Delete user failed");
+                Err(e.to_string())
+            }
+        }
+    }
+    /// Updates a user with the given username, password, ID, and user data.
+    ///
+    /// # Arguments
+    ///
+    /// * `username` - A string slice that holds the username.
+    /// * `password` - A string slice that holds the password.
+    /// * `id` - The ID of the user to update.
+    /// * `user` - A `TempCreationUser` struct representing the updated user data.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `RequestResult` indicating whether the user was updated successfully.
+    pub async fn update_user(self, id: u32, user: TempCreationUser) -> RequestResult<()> {
+        let client = self.client.lock().await;
+        let response = client
+            .put(ENDPOINT.to_string() + &format!("user/{}", id))
+            .json(&user)
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
+
+        let result = response.error_for_status_ref().map(|_| ());
+
+        match result {
+            Ok(_) => {
+                info!("Update user successful");
+                Ok(())
+            }
+            Err(e) => {
+                info!("Update user failed");
+                Err(e.to_string())
+            }
+        }
+    }
 }
-
-const ENDPOINT: &str = "https://pb.mfloto.com/v1/";
-
-/// Represents a temporary user returned by the login API.
-#[derive(Deserialize, Debug)]
-struct TempUser {
-    id: u32,
-    name: String,
-    role: u64,
-}
-
-/// Represents a temporary user used to create a new user.
-#[derive(Deserialize, Debug, Serialize, Clone, Default)]
-pub struct TempCreationUser {
-    pub(crate) name: String,
-    pub(crate) password: String,
-    pub(crate) role: u64,
-}
-
-/// Represents the result of a request.
-pub type RequestResult<T> = Result<T, String>;
 
 /// Logs in a user with the given username and password.
 ///
@@ -409,206 +586,6 @@ pub async fn login(username: String, password: String) -> RequestResult<TempCrea
     }
 }
 
-#[derive(Deserialize, Debug, Clone, Default, Serialize)]
-pub struct PlantMetadata {
-    pub name: String,
-    pub description: String,
-    pub species: String,
-    pub location: String,
-    pub additionalCareTips: Vec<String>,
-    #[serde(skip_serializing)]
-    pub plantGroup: PlantGroupMetadata,
-}
-
-#[derive(Deserialize, Debug, Clone, Serialize)]
-pub struct PlantGroupMetadata {
-    #[serde(skip_serializing)]
-    pub id: i32,
-    pub name: String,
-    pub description: String,
-    pub careTips: Vec<String>,
-    pub sensorRanges: Vec<SensorRange>,
-}
-impl Default for PlantGroupMetadata {
-    fn default() -> Self {
-        PlantGroupMetadata {
-            id: 0,
-            name: String::new(),
-            description: String::new(),
-            careTips: vec![],
-            //TODO: Curse you hardcoded values
-            sensorRanges: vec![
-                SensorRange {
-                    sensorType: SensorType {
-                        name: "soil-moisture".to_string(),
-                        unit: "percent".to_string(),
-                    },
-                    min: 0,
-                    max: 0,
-                },
-                SensorRange {
-                    sensorType: SensorType {
-                        name: "humidity".to_string(),
-                        unit: "percent".to_string(),
-                    },
-                    min: 0,
-                    max: 0,
-                },
-                SensorRange {
-                    sensorType: SensorType {
-                        name: "temperature".to_string(),
-                        unit: "celcius".to_string(),
-                    },
-                    min: 0,
-                    max: 0,
-                },
-            ],
-        }
-    }
-}
-
-#[derive(Deserialize, Debug, Clone, Default, Serialize)]
-pub struct SensorRange {
-    #[serde(skip_serializing)]
-    pub sensorType: SensorType,
-    pub min: i32,
-    pub max: i32,
-}
-#[derive(Deserialize, Debug, Clone, Default, Serialize)]
-pub struct SensorType {
-    pub name: String,
-    pub unit: String,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-pub struct GraphData {
-    pub values: Vec<i32>,
-    pub timestamps: Vec<String>,
-}
-
-/// Creates a new user with the given username, password, and user data.
-///
-/// # Arguments
-///
-/// * `username` - A string slice that holds the username.
-/// * `password` - A string slice that holds the password.
-/// * `user` - A `TempCreationUser` struct representing the user to create.
-///
-/// # Returns
-///
-/// Returns a `RequestResult` indicating whether the user was created successfully.
-pub async fn create_user(
-    username: String,
-    password: String,
-    user: TempCreationUser,
-) -> RequestResult<()> {
-    let client = reqwest::Client::new();
-    let response = client
-        .post(ENDPOINT.to_string() + "user")
-        .header(
-            "Authorization",
-            "Basic ".to_string() + &encode_credentials(username.clone(), password.clone()),
-        )
-        .json(&user)
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let result = response.error_for_status_ref().map(|_| ());
-
-    match result {
-        Ok(_) => {
-            info!("Create user successful");
-            Ok(())
-        }
-        Err(e) => {
-            info!("Create user failed");
-            Err(e.to_string())
-        }
-    }
-}
-
-/// Deletes a user with the given username, password, and ID.
-///
-/// # Arguments
-///
-/// * `username` - A string slice that holds the username.
-/// * `password` - A string slice that holds the password.
-/// * `id` - The ID of the user to delete.
-///
-/// # Returns
-///
-/// Returns a `RequestResult` indicating whether the user was deleted successfully.
-pub async fn delete_user(username: String, password: String, id: u32) -> RequestResult<()> {
-    let client = reqwest::Client::new();
-    let response = client
-        .delete(ENDPOINT.to_string() + &format!("user/{}", id))
-        .header(
-            "Authorization",
-            "Basic ".to_string() + &encode_credentials(username.clone(), password.clone()),
-        )
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let result = response.error_for_status_ref().map(|_| ());
-
-    match result {
-        Ok(_) => {
-            info!("Delete user successful");
-            Ok(())
-        }
-        Err(e) => {
-            info!("Delete user failed");
-            Err(e.to_string())
-        }
-    }
-}
-
-/// Updates a user with the given username, password, ID, and user data.
-///
-/// # Arguments
-///
-/// * `username` - A string slice that holds the username.
-/// * `password` - A string slice that holds the password.
-/// * `id` - The ID of the user to update.
-/// * `user` - A `TempCreationUser` struct representing the updated user data.
-///
-/// # Returns
-///
-/// Returns a `RequestResult` indicating whether the user was updated successfully.
-pub async fn update_user(
-    username: String,
-    password: String,
-    id: u32,
-    user: TempCreationUser,
-) -> RequestResult<()> {
-    let client = reqwest::Client::new();
-    let response = client
-        .put(ENDPOINT.to_string() + &format!("user/{}", id))
-        .header(
-            "Authorization",
-            "Basic ".to_string() + &encode_credentials(username.clone(), password.clone()),
-        )
-        .json(&user)
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let result = response.error_for_status_ref().map(|_| ());
-
-    match result {
-        Ok(_) => {
-            info!("Update user successful");
-            Ok(())
-        }
-        Err(e) => {
-            info!("Update user failed");
-            Err(e.to_string())
-        }
-    }
-}
-
 /// Encodes the given username and password as a Base64-encoded string.
 ///
 /// # Arguments
@@ -651,14 +628,15 @@ mod tests {
     async fn test_create_user() {
         let username = "testuser".to_string();
         let password = "testpassword".to_string();
+        let mut api_client = ApiClient::new(username, password);
         let random: u32 = random();
         let user = TempCreationUser {
             name: random.to_string(),
             password: "testpassword".to_string(),
-            role: PlantBuddyRole::Admin.into(),
+            role: PlantBuddyRole::User.into(),
         };
-        let result = create_user(username, password, user).await;
-        assert!(result.is_err());
+        let result = api_client.create_user(user).await;
+        assert!(result.is_ok());
     }
 
     #[test]
