@@ -2,7 +2,7 @@ use crate::detail::{DetailPage, Sensortypes};
 use crate::requests::GraphData;
 use crate::TEXT_SIZE;
 use iced::{Element, Length};
-use itertools::Itertools;
+use itertools::{enumerate, Itertools};
 use plotters::chart::SeriesLabelPosition;
 use plotters::element::PathElement;
 use plotters::prelude::RGBColor;
@@ -78,12 +78,12 @@ impl<M: 'static> PlantCharts<M> {
         message: M,
         graph_data: Vec<GraphData>,
         sensor: Sensortypes,
-        name: String,
+        name: Vec<String>,
     ) -> PlantCharts<M> {
         let mut charts = Vec::new();
-        for data in &graph_data {
+        for (i, data) in enumerate(&graph_data) {
             let chart = PlantChart::new(
-                format!("{}-{}", name, sensor),
+                format!("{}-{}", name[i], sensor),
                 (0..data.timestamps.len() as i32).collect_vec(),
                 data.values.clone(),
                 sensor.get_color_with_random_offset(),
@@ -97,7 +97,7 @@ impl<M: 'static> PlantCharts<M> {
         message: M,
         graph_data: Vec<GraphData>,
         sensor: Sensortypes,
-        name: String,
+        name: Vec<String>,
     ) -> PlantCharts<M> {
         PlantCharts::<M>::create_charts(message, graph_data, sensor, name)
     }
@@ -108,7 +108,7 @@ impl<M: 'static + Clone> Chart<M> for PlantCharts<M> {
     fn build_chart<DB: DrawingBackend>(&self, _state: &Self::State, mut builder: ChartBuilder<DB>) {
         //Change background color
         let mut chart = builder
-            .caption("Pflanzengraphen", ("sans-serif", 30).into_font())
+            .caption("Pflanzengraphen", ("sans-serif", TEXT_SIZE).into_font())
             .margin(10)
             .x_label_area_size(40)
             .y_label_area_size(40)
@@ -146,7 +146,7 @@ impl<M: 'static + Clone> Chart<M> for PlantCharts<M> {
             .border_style(BLACK)
             .background_style(WHITE.mix(0.8))
             .position(SeriesLabelPosition::UpperLeft)
-            .label_font("Hectic")
+            .label_font(("sans-serif", TEXT_SIZE).into_font())
             .draw()
             .unwrap();
     }
