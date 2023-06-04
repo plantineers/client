@@ -615,14 +615,15 @@ mod tests {
     async fn test_create_user() {
         let username = "testuser".to_string();
         let password = "testpassword".to_string();
+        let mut api_client = ApiClient::new(username, password);
         let random: u32 = random();
         let user = TempCreationUser {
             name: random.to_string(),
             password: "testpassword".to_string(),
-            role: PlantBuddyRole::Admin.into(),
+            role: PlantBuddyRole::User.into(),
         };
-        let result = create_user(username, password, user).await;
-        assert!(result.is_err());
+        let result = api_client.create_user(user).await;
+        assert!(result.is_ok());
     }
 
     #[test]

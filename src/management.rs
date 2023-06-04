@@ -499,52 +499,48 @@ fn edit_user_pressed(plantbuddy: ManagementTab, client: ApiClient) -> Command<Ma
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::requests::ApiClient;
+    use std::sync::OnceLock;
 
-    async fn create_user(
-        _username: String,
-        _password: String,
-        _user: TempCreationUser,
-    ) -> Result<(), ()> {
-        Ok(())
-    }
-
-    async fn delete_user(_username: String, _password: String, _id: u32) -> Result<(), ()> {
-        Ok(())
-    }
-
-    async fn get_all_users(_username: String, _password: String) -> Result<Vec<User>, ()> {
-        Ok(Vec::new())
-    }
-
-    async fn update_user(
-        _username: String,
-        _password: String,
-        _id: u32,
-        _user: TempCreationUser,
-    ) -> Result<(), ()> {
-        Ok(())
+    fn get_api_client() -> ApiClient {
+        let username = "testuser".to_string();
+        let password = "testpassword".to_string();
+        return ApiClient::new(username, password);
     }
 
     #[tokio::test]
     async fn test_create_user_pressed() {
+        let mut tab = ManagementTab::new();
+        tab.username_input = "test_username".to_string();
+        tab.password_input = "test_password".to_string();
+        tab.role_input = PlantBuddyRole::User;
+
+        let client = get_api_client();
+        let user_to_create = TempCreationUser {
+            name: tab.username_input.clone(),
+            password: tab.password_input.clone(),
+            role: tab.role_input.clone().into(),
+        };
         let username = "test_username".to_string();
         let password = "test_password".to_string();
-        let tab = ManagementTab::new();
 
-        create_user_pressed(tab, username, password);
+        create_user_pressed(tab, client.clone());
     }
 
     #[tokio::test]
     async fn test_delete_user_pressed() {
+        let client = get_api_client();
         let username = "test_username".to_string();
         let password = "test_password".to_string();
         let id = 1;
 
-        delete_user_pressed(id, username, password);
+        delete_user_pressed(id, client.clone());
     }
 
     #[tokio::test]
     async fn test_edit_user_pressed() {
+        let client = get_api_client();
+
         let username = "test_username".to_string();
         let password = "test_password".to_string();
         let mut tab = ManagementTab::new();
@@ -555,6 +551,6 @@ mod tests {
             role: PlantBuddyRole::User,
         });
 
-        edit_user_pressed(tab, username, password);
+        edit_user_pressed(tab, client.clone());
     }
 }
