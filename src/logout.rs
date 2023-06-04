@@ -3,11 +3,11 @@ use iced::Alignment::Center;
 use iced::{
     alignment::{Horizontal, Vertical},
     theme,
-    widget::{Button, Column, Container, Row, Text, TextInput},
-    Alignment, Element, Length,
+    widget::{Button, Column, Container, Row, Text},
+    Element, Length,
 };
 use iced_aw::tab_bar::TabLabel;
-use iced_aw::{style, Card, Modal};
+use iced_aw::{Card, Modal};
 use log::info;
 
 /// This enum represents the various states or actions related to a logout process.
@@ -180,8 +180,6 @@ impl Tab for LogoutTab {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use iced::executor::Executor;
-    use iced::{Command, Element, Sandbox};
 
     #[test]
     fn test_logout_tab_title() {

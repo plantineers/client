@@ -11,6 +11,7 @@ use iced_aw::tab_bar::TabLabel;
 use iced_aw::{style, Card, Modal};
 use iced_core::Alignment::Center;
 use itertools::enumerate;
+use log::info;
 use plotters::prelude::*;
 use plotters_iced::ChartWidget;
 use rand::Rng;
@@ -188,7 +189,6 @@ impl DetailPage {
                             .unwrap()
                             .clone()
                             .delete_plant(plant_id)
-                            .await
                             .unwrap_or_else(|_| ());
                     },
                     |_| DetailMessage::DeleteSuccess,
@@ -275,10 +275,13 @@ impl DetailPage {
                         .split(';')
                         .map(|x| x.to_string())
                         .collect();
-                    let _ = API_CLIENT.get().unwrap().clone().create_plant(
-                        self.plant.data.clone(),
-                        self.plant.data.plantGroup.id,
-                        Some(self.plant.id.clone()),
+                    return Command::perform(
+                        API_CLIENT.get().unwrap().clone().create_plant(
+                            self.plant.data.clone(),
+                            self.plant.data.plantGroup.id,
+                            Some(self.plant.id.clone()),
+                        ),
+                        |_| DetailMessage::Loaded,
                     );
                 } else {
                     self.plant.data.plantGroup.careTips =
