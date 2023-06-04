@@ -187,9 +187,15 @@ impl Application for Plantbuddy {
                         self.is_logged_in = LoginState::LoggedIn;
                         self.user = user.clone();
 
-                        API_CLIENT
-                            .set(ApiClient::new(user.name.clone(), user.password.clone()))
-                            .unwrap();
+                        let res = API_CLIENT
+                            .set(ApiClient::new(user.name.clone(), user.password.clone()));
+                        if res.is_err() {
+                            API_CLIENT
+                                .get()
+                                .unwrap()
+                                .clone()
+                                .replace_inner(user.name.clone(), user.password.clone());
+                        }
                         // Clear the LoginTab
                         self.login_page = LoginTab::new();
                         // Update the logged in user in the management tab
