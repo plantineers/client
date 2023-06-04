@@ -20,6 +20,103 @@ const ENDPOINT: &str = "https://pb.mfloto.com/v1/";
 /// Represents the result of a request.
 pub type RequestResult<T> = Result<T, String>;
 
+#[derive(Deserialize, Debug, Clone, Default, Serialize)]
+pub struct PlantMetadata {
+    pub name: String,
+    pub description: String,
+    pub species: String,
+    pub location: String,
+    pub additionalCareTips: Vec<String>,
+    #[serde(skip_serializing)]
+    pub plantGroup: PlantGroupMetadata,
+}
+
+#[derive(Deserialize, Debug, Clone, Serialize)]
+pub struct PlantGroupMetadata {
+    #[serde(skip_serializing)]
+    pub id: i32,
+    pub name: String,
+    pub description: String,
+    pub careTips: Vec<String>,
+    pub sensorRanges: Vec<SensorRange>,
+}
+impl Default for PlantGroupMetadata {
+    fn default() -> Self {
+        PlantGroupMetadata {
+            id: 0,
+            name: String::new(),
+            description: String::new(),
+            careTips: vec![],
+            //TODO: Curse you hardcoded values
+            sensorRanges: vec![
+                SensorRange {
+                    sensorType: SensorType {
+                        name: "soil-moisture".to_string(),
+                        unit: "percent".to_string(),
+                    },
+                    min: 0,
+                    max: 0,
+                },
+                SensorRange {
+                    sensorType: SensorType {
+                        name: "humidity".to_string(),
+                        unit: "percent".to_string(),
+                    },
+                    min: 0,
+                    max: 0,
+                },
+                SensorRange {
+                    sensorType: SensorType {
+                        name: "temperature".to_string(),
+                        unit: "celcius".to_string(),
+                    },
+                    min: 0,
+                    max: 0,
+                },
+            ],
+        }
+    }
+}
+
+/// Represents a the SensorRagen for a given SensorType
+#[derive(Deserialize, Debug, Clone, Default, Serialize)]
+pub struct SensorRange {
+    #[serde(skip_serializing)]
+    pub sensorType: SensorType,
+    pub min: i32,
+    pub max: i32,
+}
+
+/// Represents a sensor type
+#[derive(Deserialize, Debug, Clone, Default, Serialize)]
+pub struct SensorType {
+    pub name: String,
+    pub unit: String,
+}
+
+/// Represents Graphs data to display
+#[derive(Deserialize, Debug, Clone)]
+pub struct GraphData {
+    pub values: Vec<i32>,
+    pub timestamps: Vec<String>,
+}
+
+/// Represents a temporary user returned by the login API.
+#[derive(Deserialize, Debug)]
+struct TempUser {
+    id: u32,
+    name: String,
+    role: u64,
+}
+
+/// Represents a temporary user used to create a new user.
+#[derive(Deserialize, Debug, Serialize, Clone, Default)]
+pub struct TempCreationUser {
+    pub(crate) name: String,
+    pub(crate) password: String,
+    pub(crate) role: u64,
+}
+
 /// Our Api client that keeps our client and credentials to avoid reencoding and redoing name resolutions
 /// The client is wrapped in an Arc<Mutex<reqwest::Client>> to allow for concurrent access using tokio to avoid deadlocks
 #[derive(Clone, Debug)]
@@ -427,22 +524,6 @@ impl ApiClient {
     }
 }
 
-/// Represents a temporary user returned by the login API.
-#[derive(Deserialize, Debug)]
-struct TempUser {
-    id: u32,
-    name: String,
-    role: u64,
-}
-
-/// Represents a temporary user used to create a new user.
-#[derive(Deserialize, Debug, Serialize, Clone, Default)]
-pub struct TempCreationUser {
-    pub(crate) name: String,
-    pub(crate) password: String,
-    pub(crate) role: u64,
-}
-
 /// Logs in a user with the given username and password.
 ///
 /// # Arguments
@@ -490,83 +571,6 @@ pub async fn login(username: String, password: String) -> RequestResult<TempCrea
             Err(e.to_string())
         }
     }
-}
-
-#[derive(Deserialize, Debug, Clone, Default, Serialize)]
-pub struct PlantMetadata {
-    pub name: String,
-    pub description: String,
-    pub species: String,
-    pub location: String,
-    pub additionalCareTips: Vec<String>,
-    #[serde(skip_serializing)]
-    pub plantGroup: PlantGroupMetadata,
-}
-
-#[derive(Deserialize, Debug, Clone, Serialize)]
-pub struct PlantGroupMetadata {
-    #[serde(skip_serializing)]
-    pub id: i32,
-    pub name: String,
-    pub description: String,
-    pub careTips: Vec<String>,
-    pub sensorRanges: Vec<SensorRange>,
-}
-impl Default for PlantGroupMetadata {
-    fn default() -> Self {
-        PlantGroupMetadata {
-            id: 0,
-            name: String::new(),
-            description: String::new(),
-            careTips: vec![],
-            //TODO: Curse you hardcoded values
-            sensorRanges: vec![
-                SensorRange {
-                    sensorType: SensorType {
-                        name: "soil-moisture".to_string(),
-                        unit: "percent".to_string(),
-                    },
-                    min: 0,
-                    max: 0,
-                },
-                SensorRange {
-                    sensorType: SensorType {
-                        name: "humidity".to_string(),
-                        unit: "percent".to_string(),
-                    },
-                    min: 0,
-                    max: 0,
-                },
-                SensorRange {
-                    sensorType: SensorType {
-                        name: "temperature".to_string(),
-                        unit: "celcius".to_string(),
-                    },
-                    min: 0,
-                    max: 0,
-                },
-            ],
-        }
-    }
-}
-
-#[derive(Deserialize, Debug, Clone, Default, Serialize)]
-pub struct SensorRange {
-    #[serde(skip_serializing)]
-    pub sensorType: SensorType,
-    pub min: i32,
-    pub max: i32,
-}
-#[derive(Deserialize, Debug, Clone, Default, Serialize)]
-pub struct SensorType {
-    pub name: String,
-    pub unit: String,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-pub struct GraphData {
-    pub values: Vec<i32>,
-    pub timestamps: Vec<String>,
 }
 
 /// Encodes the given username and password as a Base64-encoded string.
