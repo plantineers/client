@@ -1,6 +1,6 @@
-use crate::detail::{DetailPage, Sensortypes};
+use crate::detail::{Sensortypes};
 use crate::requests::GraphData;
-use crate::TEXT_SIZE;
+
 use iced::{Element, Length};
 use itertools::Itertools;
 use plotters::chart::SeriesLabelPosition;

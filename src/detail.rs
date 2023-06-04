@@ -8,10 +8,10 @@ use iced::futures::TryFutureExt;
 use iced::widget::{Button, Column, Container, Row, Text, TextInput};
 use iced::{theme, Command, Element, Length};
 use iced_aw::tab_bar::TabLabel;
-use iced_aw::{style, Card, Modal};
+use iced_aw::{Card, Modal};
 use iced_core::Alignment::Center;
 use itertools::enumerate;
-use log::info;
+
 use plotters::prelude::*;
 use plotters_iced::ChartWidget;
 use rand::Rng;

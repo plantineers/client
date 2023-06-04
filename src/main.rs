@@ -28,7 +28,7 @@ use crate::requests::{RequestResult, TempCreationUser};
 use iced::alignment::{Horizontal, Vertical};
 use iced::theme::{Custom, Palette};
 use iced::widget::container::{Appearance, StyleSheet};
-use iced::widget::vertical_slider::draw;
+
 use iced::widget::{Column, Container, Text};
 use iced::{
     executor, window, Application, Background, Color, Command, Element, Font, Length, Settings,
@@ -61,7 +61,7 @@ static API_CLIENT: OnceLock<ApiClient> = OnceLock::new();
 
 impl StyleSheet for MyStylesheet {
     type Style = iced::Theme;
-    fn appearance(&self, style: &Self::Style) -> Appearance {
+    fn appearance(&self, _style: &Self::Style) -> Appearance {
         Appearance {
             text_color: Some(Color::WHITE),
             background: Some(Background::Color(Color::WHITE)),
@@ -313,7 +313,7 @@ mod tests {
 
     #[test]
     fn test_new_plantbuddy() {
-        let (plantbuddy, cmd) = Plantbuddy::new(());
+        let (plantbuddy, _cmd) = Plantbuddy::new(());
         assert_eq!(plantbuddy.is_logged_in, LoginState::NotLoggedIn);
         assert_eq!(plantbuddy.active_tab, 0);
         assert_eq!(plantbuddy.active_tab, 0);

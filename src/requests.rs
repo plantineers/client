@@ -602,7 +602,7 @@ mod tests {
     async fn test_get_all_users() {
         let username = "testuser".to_string();
         let password = "testpassword".to_string();
-        let mut api_client = ApiClient::new(username, password);
+        let api_client = ApiClient::new(username, password);
         let result = api_client.get_all_users().await;
         assert!(result.is_ok());
     }
@@ -611,7 +611,7 @@ mod tests {
     async fn test_create_user() {
         let username = "testuser".to_string();
         let password = "testpassword".to_string();
-        let mut api_client = ApiClient::new(username, password);
+        let api_client = ApiClient::new(username, password);
         let random: u32 = random();
         let user = TempCreationUser {
             name: random.to_string(),
