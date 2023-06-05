@@ -1,4 +1,5 @@
 use crate::graphs::{PlantChart, PlantCharts};
+use std::collections::HashMap;
 
 use crate::requests::{GraphData, PlantGroupMetadata, PlantMetadata};
 use crate::{Icon, Message, MyStylesheet, Tab, API_CLIENT, TEXT_SIZE};
@@ -71,7 +72,7 @@ pub(crate) struct DetailPage {
     pub modal_is_plant: bool,
     pub additionalCareTips: String,
     pub careTips: String,
-    pub sensor_border: Vec<String>,
+    pub sensor_border: HashMap<String, String>,
     pub id_names: Vec<(String, String)>,
     pub plant: DetailPlant,
     pub message: DetailMessage,
@@ -127,6 +128,7 @@ impl Sensortypes {
             Sensortypes::Feuchtigkeit,
             Sensortypes::Luftfeuchtigkeit,
             Sensortypes::Temperatur,
+            Sensortypes::Licht,
         ]
         .iter()
         .copied()
@@ -151,7 +153,7 @@ impl DetailPage {
             modal: false,
             modal_is_plant: true,
             careTips: String::new(),
-            sensor_border: vec!["".to_string(); 4],
+            sensor_border: HashMap::new(),
             additionalCareTips: String::new(),
             plant,
             message: DetailMessage::Pending,
@@ -249,27 +251,46 @@ impl DetailPage {
                     self.careTips.push_str(x);
                     self.careTips.push(';');
                 });
-                //TODO: Rewrite this to be more generic; order is important now; use hashmap!!
+                info!("SensorType: {:?}", self.plant.data.plantGroup.sensorRanges);
                 self.plant
                     .data
                     .plantGroup
                     .sensorRanges
                     .iter()
                     .for_each(|x| match x.sensorType.name.as_str() {
+                        //TODO: Maybe get sensors from Api and match them here to a hashmap
                         "soil-moisture" => {
-                            self.sensor_border[2] = format!("{};{}", x.max, x.min);
+                            self.sensor_border.insert(
+                                Sensortypes::Feuchtigkeit.get_name(),
+                                format!("{};{}", x.max, x.min),
+                            );
                         }
                         "humidity" => {
-                            self.sensor_border[0] = format!("{};{}", x.max, x.min);
+                            self.sensor_border.insert(
+                                Sensortypes::Luftfeuchtigkeit.get_name(),
+                                format!("{};{}", x.max, x.min),
+                            );
                         }
                         "temperature" => {
-                            self.sensor_border[3] = format!("{};{}", x.max, x.min);
+                            self.sensor_border.insert(
+                                Sensortypes::Temperatur.get_name(),
+                                format!("{};{}", x.max, x.min),
+                            );
                         }
                         "light" => {
-                            self.sensor_border[1] = format!("{};{}", x.max, x.min);
+                            self.sensor_border.insert(
+                                Sensortypes::Licht.get_name(),
+                                format!("{};{}", x.max, x.min),
+                            );
                         }
                         _ => {}
                     });
+                Sensortypes::iter().for_each(|sensor| {
+                    if !self.sensor_border.contains_key(sensor.get_name().as_str()) {
+                        self.sensor_border
+                            .insert(sensor.get_name(), String::from("0;0"));
+                    }
+                });
                 self.plant
                     .charts
                     .charts
@@ -339,22 +360,32 @@ impl DetailPage {
                 } else {
                     self.plant.data.plantGroup.careTips =
                         self.careTips.split(';').map(|x| x.to_string()).collect();
-                    for (i, sensor) in enumerate(self.plant.data.plantGroup.sensorRanges.iter_mut())
-                    {
-                        sensor.max = self.sensor_border.clone()[i.clone()]
-                            .split(';')
-                            .next()
-                            .unwrap()
-                            .parse()
-                            .unwrap_or_default();
-                        sensor.min = self.sensor_border.clone()[i]
-                            .split(';')
-                            .last()
-                            .unwrap()
-                            .parse()
-                            .unwrap_or_default();
-                        info!("Sensor: {:?}", sensor);
-                        info!("Sensor border: {:?}", self.sensor_border.clone()[i]);
+                    for sensor in self.plant.data.plantGroup.sensorRanges.iter_mut() {
+                        for i in Sensortypes::iter() {
+                            if i.get_name() == sensor.sensorType.name {
+                                    .collect::<Vec<&str>>();
+                                sensor.max = self
+                                    .sensor_border
+                                    .clone()
+                                    .get(i.get_name().as_str())
+                                    .unwrap()
+                                    .split(';')
+                                    .next()
+                                    .unwrap()
+                                    .parse()
+                                    .unwrap_or_default();
+                                sensor.min = self
+                                    .sensor_border
+                                    .clone()
+                                    .get(i.get_name().as_str())
+                                    .unwrap()
+                                    .split(';')
+                                    .last()
+                                    .unwrap()
+                                    .parse()
+                                    .unwrap_or_default();
+                            }
+                        }
                     }
                     self.modal = false;
                     Command::perform(
@@ -383,16 +414,20 @@ impl DetailPage {
                     self.careTips = value;
                 }
                 9 => {
-                    self.sensor_border[2] = value;
+                    self.sensor_border
+                        .insert(Sensortypes::Feuchtigkeit.get_name(), value);
                 }
                 10 => {
-                    self.sensor_border[0] = value;
+                    self.sensor_border
+                        .insert(Sensortypes::Luftfeuchtigkeit.get_name(), value);
                 }
                 11 => {
-                    self.sensor_border[3] = value;
+                    self.sensor_border
+                        .insert(Sensortypes::Temperatur.get_name(), value);
                 }
                 12 => {
-                    self.sensor_border[1] = value;
+                    self.sensor_border
+                        .insert(Sensortypes::Licht.get_name(), value);
                 }
                 _ => {}
             },
@@ -550,27 +585,48 @@ impl Tab for DetailPage {
                                     .size(TEXT_SIZE),
                             )
                             .push(
-                                TextInput::new("Feuchtigkeitsgrenzwerte", &self.sensor_border[2])
-                                    .size(TEXT_SIZE)
-                                    .on_input(|input| DetailMessage::FieldUpdated(9, input)),
+                                TextInput::new(
+                                    "Feuchtigkeitsgrenzwerte",
+                                    &self
+                                        .sensor_border
+                                        .get(Sensortypes::Feuchtigkeit.get_name().as_str())
+                                        .unwrap(),
+                                )
+                                .size(TEXT_SIZE)
+                                .on_input(|input| DetailMessage::FieldUpdated(9, input)),
                             )
                             .push(
                                 TextInput::new(
                                     "Luftfeuchtigkeitsgrenzwerte",
-                                    &self.sensor_border[0],
+                                    &self
+                                        .sensor_border
+                                        .get(Sensortypes::Luftfeuchtigkeit.get_name().as_str())
+                                        .unwrap(),
                                 )
                                 .size(TEXT_SIZE)
                                 .on_input(|input| DetailMessage::FieldUpdated(10, input)),
                             )
                             .push(
-                                TextInput::new("Temperaturgrenzwerte", &self.sensor_border[3])
-                                    .size(TEXT_SIZE)
-                                    .on_input(|input| DetailMessage::FieldUpdated(11, input)),
+                                TextInput::new(
+                                    "Temperaturgrenzwerte",
+                                    &self
+                                        .sensor_border
+                                        .get(Sensortypes::Temperatur.get_name().as_str())
+                                        .unwrap(),
+                                )
+                                .size(TEXT_SIZE)
+                                .on_input(|input| DetailMessage::FieldUpdated(11, input)),
                             )
                             .push(
-                                TextInput::new("Lichtgrenzwerte", &self.sensor_border[1])
-                                    .size(TEXT_SIZE)
-                                    .on_input(|input| DetailMessage::FieldUpdated(12, input)),
+                                TextInput::new(
+                                    "Lichtgrenzwerte",
+                                    &self
+                                        .sensor_border
+                                        .get(Sensortypes::Licht.get_name().as_str())
+                                        .unwrap(),
+                                )
+                                .size(TEXT_SIZE)
+                                .on_input(|input| DetailMessage::FieldUpdated(12, input)),
                             ),
                     )
                     .foot(
