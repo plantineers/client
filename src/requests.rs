@@ -206,7 +206,7 @@ impl ApiClient {
                     let mut values = vec![];
                     let mut timestamps = vec![];
                     data.as_array().unwrap().iter().for_each(|x| {
-                        if type_clone != "humidity" {
+                        if type_clone == "temperature" {
                             let value = x.get("value").unwrap();
                             let timestamp = x.get("timestamp").unwrap();
                             values.push(value.as_f64().unwrap() as i32);
