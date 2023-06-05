@@ -92,7 +92,6 @@ fn main() {
     Plantbuddy::run(Settings {
         antialiasing: false,
         window: window::Settings {
-            size: (1920, 1080),
             position: window::Position::Centered,
             ..window::Settings::default()
         },

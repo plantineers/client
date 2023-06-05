@@ -1,5 +1,5 @@
 use crate::detail::Sensortypes;
-use crate::graphs::{PlantCharts};
+use crate::graphs::PlantCharts;
 
 use crate::requests::{GraphData, PlantGroupMetadata, PlantMetadata};
 
@@ -30,6 +30,7 @@ pub enum HomeMessage {
 }
 
 pub(crate) struct HomePage {
+    timerange: (String, String),
     selected_group: String,
     group_name_id: Vec<(String, String)>,
     show_modal: bool,
@@ -42,9 +43,9 @@ pub(crate) struct HomePage {
     group: String,
     charts: PlantCharts<HomeMessage>,
     active_sensor: Sensortypes,
-    ids: Vec<String>,
+    group_ids: Vec<String>,
     id_names: Vec<(String, String)>,
-    names: Vec<String>,
+    group_names: Vec<String>,
     sensor_data: HashMap<String, (Vec<GraphData>, Vec<String>)>,
 }
 
@@ -53,6 +54,12 @@ impl HomePage {
         let vec_chart = Vec::new();
         let charts = PlantCharts::new(vec_chart, HomeMessage::Plant);
         HomePage {
+            timerange: (
+                "2019-01-01T00:00:00.000Z".to_string(),
+                chrono::offset::Local::now()
+                    .format("%Y-%m-%dT%H:%M:%S.000Z")
+                    .to_string(),
+            ),
             selected_group: String::new(),
             group_name_id: Vec::new(),
             show_modal: false,
@@ -61,13 +68,18 @@ impl HomePage {
             additionalCareTips: String::new(),
             careTips: String::new(),
             charts,
-            names: Vec::new(),
+            group_names: Vec::new(),
             id_names: Vec::new(),
             active_sensor: Sensortypes::Luftfeuchtigkeit,
             group: String::new(),
-            ids: Vec::new(),
+            group_ids: Vec::new(),
             new_group: PlantGroupMetadata::default(),
-            sensor_border: vec!["".to_string(), "".to_string(), "".to_string()],
+            sensor_border: vec![
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            ],
             sensor_data: HashMap::new(),
         }
     }
@@ -89,7 +101,7 @@ impl HomePage {
             }
             HomeMessage::Plant => (),
             HomeMessage::Refresh => {
-                let group_ids_name = API_CLIENT
+                self.group_name_id = API_CLIENT
                     .get()
                     .unwrap()
                     .clone()
@@ -101,8 +113,7 @@ impl HomePage {
                     .clone()
                     .get_all_plant_ids_names()
                     .unwrap();
-                self.ids = self.id_names.iter().map(|x| x.0.clone()).collect_vec();
-                self.group_name_id = group_ids_name;
+                self.group_ids = self.group_name_id.iter().map(|x| x.0.clone()).collect_vec();
             }
             HomeMessage::SwitchGraph(sensortypes) => {
                 self.active_sensor = sensortypes;
@@ -115,20 +126,26 @@ impl HomePage {
                         .get()
                         .unwrap()
                         .clone()
-                        .get_graphs(self.ids.clone(), sensortypes.get_name())
+                        .get_graphs(
+                            self.group_ids.clone(),
+                            false,
+                            sensortypes.get_name(),
+                            self.timerange.clone(),
+                        )
                         .unwrap();
                     // Collect names from id_names if id is in data
-                    self.names = self
-                        .id_names
+                    self.group_names = self
+                        .group_name_id
                         .iter()
                         .filter(|(id, _)| data.iter().any(|(_, i)| i == id))
                         .map(|(_, name)| name.clone())
                         .collect_vec();
+                    info!("Group names: {:?}", self.group_names);
                     // Collect graph_data from data and pair with names
                     graph_data = data.iter().map(|(g, _)| g.clone()).collect();
                     self.sensor_data.insert(
                         sensortypes.get_name(),
-                        (graph_data.clone(), self.names.clone()),
+                        (graph_data.clone(), self.group_names.clone()),
                     );
                 } else {
                     info!("Sensor data not in HashMap");
@@ -138,14 +155,14 @@ impl HomePage {
                         .unwrap()
                         .clone();
                     graph_data = data.0;
-                    self.names = data.1;
+                    self.group_names = data.1;
                 }
                 self.charts = PlantCharts::update_charts(
                     &self.charts.clone(),
                     HomeMessage::Plant,
                     graph_data,
                     sensortypes,
-                    self.names.clone(),
+                    self.group_names.clone(),
                 );
             }
             HomeMessage::OpenModalPlant => {
@@ -196,6 +213,9 @@ impl HomePage {
                 12 => {
                     self.selected_group = value;
                 }
+                13 => {
+                    self.sensor_border[3] = value;
+                }
                 _ => (),
             },
             HomeMessage::CloseModal => self.show_modal = false,
@@ -209,7 +229,6 @@ impl HomePage {
                         .collect();
                     self.show_modal = false;
                     Command::perform(
-                        // TODO: Give feedback to the user
                         API_CLIENT.get().unwrap().clone().create_plant(
                             self.new_plant.clone(),
                             self.group.clone().parse().unwrap_or_default(),
@@ -413,6 +432,11 @@ impl Tab for HomePage {
                                     TextInput::new("Temperaturgrenzwerte", &self.sensor_border[2])
                                         .size(TEXT_SIZE)
                                         .on_input(|input| HomeMessage::FieldUpdated(11, input)),
+                                )
+                                .push(
+                                    TextInput::new("Lichtgrenzwerte", &self.sensor_border[3])
+                                        .size(TEXT_SIZE)
+                                        .on_input(|input| HomeMessage::FieldUpdated(13, input)),
                                 ),
                         )
                         .foot(
@@ -463,8 +487,8 @@ impl Tab for HomePage {
                 )
                 .spacing(20)
                 .push(
-                    Button::new(Text::new("Temperatur").size(TEXT_SIZE))
-                        .on_press(HomeMessage::SwitchGraph(Sensortypes::Temperatur)),
+                    Button::new(Text::new("Feuchtigkeit").size(TEXT_SIZE))
+                        .on_press(HomeMessage::SwitchGraph(Sensortypes::Feuchtigkeit)),
                 )
                 .spacing(20)
                 .push(
@@ -473,8 +497,13 @@ impl Tab for HomePage {
                 )
                 .spacing(20)
                 .push(
-                    Button::new(Text::new("Feuchtigkeit").size(TEXT_SIZE))
-                        .on_press(HomeMessage::SwitchGraph(Sensortypes::Feuchtigkeit)),
+                    Button::new(Text::new("Temperatur").size(TEXT_SIZE))
+                        .on_press(HomeMessage::SwitchGraph(Sensortypes::Temperatur)),
+                )
+                .spacing(20)
+                .push(
+                    Button::new(Text::new("Licht").size(TEXT_SIZE))
+                        .on_press(HomeMessage::SwitchGraph(Sensortypes::Licht)),
                 );
             let lower_row: Row<HomeMessage, Renderer> = Row::new()
                 .push(

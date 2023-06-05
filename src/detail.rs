@@ -1,16 +1,16 @@
 use crate::graphs::{PlantChart, PlantCharts};
+use std::collections::HashMap;
 
-//TODO: Groups shouldnt be deleted here, fix error handling
 use crate::requests::{GraphData, PlantGroupMetadata, PlantMetadata};
 use crate::{Icon, Message, MyStylesheet, Tab, API_CLIENT, TEXT_SIZE};
 use iced::alignment::{Horizontal, Vertical};
 use iced::futures::TryFutureExt;
-use iced::widget::{Button, Column, Container, Row, Text, TextInput};
+
+use iced::widget::{scrollable, Button, Column, Container, Row, Text, TextInput};
 use iced::{theme, Command, Element, Length};
 use iced_aw::tab_bar::TabLabel;
 use iced_aw::{Card, Modal};
 use iced_core::Alignment::Center;
-use itertools::enumerate;
 use log::info;
 use plotters::prelude::*;
 use plotters_iced::ChartWidget;
@@ -24,10 +24,8 @@ pub struct DetailPlant {
     pub data: PlantMetadata,
     pub charts: PlantCharts<DetailMessage>,
 }
-
 impl DetailPlant {
     pub fn new(id: String, graph_data: Vec<GraphData>) -> Self {
-        // TODO: Fix error handling, Message System
         let plant_data: (PlantMetadata, PlantGroupMetadata) = API_CLIENT
             .get()
             .unwrap()
@@ -50,6 +48,7 @@ impl DetailPlant {
 #[derive(Debug, Clone, PartialEq)]
 pub enum DetailMessage {
     OkButtonPressed,
+    SwitchTime(chrono::Duration),
     OpenModalPlant,
     OpenModalGroup,
     CloseModal,
@@ -65,11 +64,13 @@ pub enum DetailMessage {
 }
 
 pub(crate) struct DetailPage {
+    pub active_sensor: Sensortypes,
+    pub timerange: (String, String),
     pub modal: bool,
     pub modal_is_plant: bool,
     pub additionalCareTips: String,
     pub careTips: String,
-    pub sensor_border: Vec<String>,
+    pub sensor_border: HashMap<String, String>,
     pub id_names: Vec<(String, String)>,
     pub plant: DetailPlant,
     pub message: DetailMessage,
@@ -79,6 +80,7 @@ pub enum Sensortypes {
     Feuchtigkeit,
     Luftfeuchtigkeit,
     Temperatur,
+    Licht,
 }
 impl Display for Sensortypes {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -86,6 +88,7 @@ impl Display for Sensortypes {
             Sensortypes::Feuchtigkeit => write!(f, "Feuchtigkeit"),
             Sensortypes::Luftfeuchtigkeit => write!(f, "Luftfeuchtigkeit"),
             Sensortypes::Temperatur => write!(f, "Temperatur"),
+            Sensortypes::Licht => write!(f, "Licht"),
         }
     }
 }
@@ -95,6 +98,7 @@ impl Sensortypes {
             Sensortypes::Feuchtigkeit => String::from("soil-moisture"),
             Sensortypes::Luftfeuchtigkeit => String::from("humidity"),
             Sensortypes::Temperatur => String::from("temperature"),
+            Sensortypes::Licht => String::from("light"),
         }
     }
     pub fn get_color(&self) -> RGBColor {
@@ -102,6 +106,7 @@ impl Sensortypes {
             Sensortypes::Feuchtigkeit => RGBColor(0, 0, 255),
             Sensortypes::Luftfeuchtigkeit => RGBColor(0, 255, 0),
             Sensortypes::Temperatur => RGBColor(255, 0, 0),
+            Sensortypes::Licht => RGBColor(255, 255, 0),
         }
     }
     pub fn get_color_with_random_offset(&self) -> RGBColor {
@@ -113,6 +118,7 @@ impl Sensortypes {
             Sensortypes::Feuchtigkeit => RGBColor(offset, offset2, 255 - offset3),
             Sensortypes::Luftfeuchtigkeit => RGBColor(offset, 255 - offset3, offset2),
             Sensortypes::Temperatur => RGBColor(255 - offset3, offset, offset2),
+            Sensortypes::Licht => RGBColor(255 - offset3, 255 - offset3.clone(), offset),
         }
     }
     pub fn iter() -> impl Iterator<Item = Sensortypes> {
@@ -120,6 +126,7 @@ impl Sensortypes {
             Sensortypes::Feuchtigkeit,
             Sensortypes::Luftfeuchtigkeit,
             Sensortypes::Temperatur,
+            Sensortypes::Licht,
         ]
         .iter()
         .copied()
@@ -133,15 +140,37 @@ impl DetailPage {
             charts: PlantCharts::new(Vec::new(), DetailMessage::Loaded),
         };
         DetailPage {
+            active_sensor: Sensortypes::Feuchtigkeit,
             id_names: vec![],
+            timerange: (
+                "2019-01-01T00:00:00.000Z".to_string(),
+                chrono::offset::Local::now()
+                    .format("%Y-%m-%dT%H:%M:%S.000Z")
+                    .to_string(),
+            ),
             modal: false,
             modal_is_plant: true,
             careTips: String::new(),
-            sensor_border: vec![],
+            sensor_border: HashMap::new(),
             additionalCareTips: String::new(),
             plant,
             message: DetailMessage::Pending,
         }
+    }
+    pub fn insert_newline_to_string(&self, string: String) -> String {
+        let mut new_string = String::new();
+        let mut counter = 0;
+        let words = string.split_whitespace();
+        for word in words {
+            counter += word.len();
+            if counter > 30 {
+                new_string.push('\n');
+                counter = 0;
+            }
+            new_string.push_str(word);
+            new_string.push(' ');
+        }
+        new_string
     }
     pub fn min_max_graphs(&self, sensor_types: Sensortypes) -> Vec<PlantChart> {
         let mut charts = vec![];
@@ -176,13 +205,22 @@ impl DetailPage {
     }
     pub fn update(&mut self, message: DetailMessage) -> Command<DetailMessage> {
         match message {
+            DetailMessage::SwitchTime(value) => {
+                info!("Switching time to {:?}", value);
+                let now = chrono::offset::Local::now();
+                let start = now - value;
+                self.timerange = (
+                    start.format("%Y-%m-%dT%H:%M:%S.000Z").to_string(),
+                    now.format("%Y-%m-%dT%H:%M:%S.000Z").to_string(),
+                );
+                return self.update(DetailMessage::SwitchGraph(self.active_sensor));
+            }
             DetailMessage::Pending => {
                 self.message = DetailMessage::Pending;
             }
             DetailMessage::Delete => {
                 let plant_id = self.plant.id.clone();
                 return Command::perform(
-                    // TODO: Error handling here by not unwrapping
                     API_CLIENT
                         .get()
                         .unwrap()
@@ -193,7 +231,7 @@ impl DetailPage {
                 );
             }
             DetailMessage::Load => {
-                info!("Refresh");
+                info!("Refresh Id List");
                 //if empty self.id_names should be an empty vec
                 self.id_names = API_CLIENT
                     .get()
@@ -208,26 +246,64 @@ impl DetailPage {
                     .get()
                     .unwrap()
                     .clone()
-                    .get_graphs(vec![id.clone()], Sensortypes::Feuchtigkeit.get_name())
+                    .get_graphs(
+                        vec![id.clone()],
+                        true,
+                        Sensortypes::Feuchtigkeit.get_name(),
+                        self.timerange.clone(),
+                    )
                     .unwrap_or_default();
                 let graph_data: Vec<GraphData> = data.iter().map(|(g, _)| g.clone()).collect();
                 self.plant = DetailPlant::new(id, graph_data);
+                self.additionalCareTips = String::new();
                 self.plant.data.additionalCareTips.iter().for_each(|x| {
                     self.additionalCareTips.push_str(x);
                     self.additionalCareTips.push(';');
                 });
+                self.careTips = String::new();
                 self.plant.data.plantGroup.careTips.iter().for_each(|x| {
                     self.careTips.push_str(x);
                     self.careTips.push(';');
                 });
+                info!("SensorType: {:?}", self.plant.data.plantGroup.sensorRanges);
                 self.plant
                     .data
                     .plantGroup
                     .sensorRanges
                     .iter()
-                    .for_each(|x| {
-                        self.sensor_border.push(format!("{};{}", x.max, x.min));
+                    .for_each(|x| match x.sensorType.name.as_str() {
+                        "soil-moisture" => {
+                            self.sensor_border.insert(
+                                Sensortypes::Feuchtigkeit.get_name(),
+                                format!("{};{}", x.max, x.min),
+                            );
+                        }
+                        "humidity" => {
+                            self.sensor_border.insert(
+                                Sensortypes::Luftfeuchtigkeit.get_name(),
+                                format!("{};{}", x.max, x.min),
+                            );
+                        }
+                        "temperature" => {
+                            self.sensor_border.insert(
+                                Sensortypes::Temperatur.get_name(),
+                                format!("{};{}", x.max, x.min),
+                            );
+                        }
+                        "light" => {
+                            self.sensor_border.insert(
+                                Sensortypes::Licht.get_name(),
+                                format!("{};{}", x.max, x.min),
+                            );
+                        }
+                        _ => {}
                     });
+                Sensortypes::iter().for_each(|sensor| {
+                    if !self.sensor_border.contains_key(sensor.get_name().as_str()) {
+                        self.sensor_border
+                            .insert(sensor.get_name(), String::from("0;0"));
+                    }
+                });
                 self.plant
                     .charts
                     .charts
@@ -235,12 +311,19 @@ impl DetailPage {
                 self.message = DetailMessage::Loaded;
             }
             DetailMessage::SwitchGraph(sensor_types) => {
+                info!("Switching Graph to {:?}", sensor_types);
+                self.active_sensor = sensor_types;
                 let sensor_name = sensor_types.get_name();
                 let data = API_CLIENT
                     .get()
                     .unwrap()
                     .clone()
-                    .get_graphs(vec![self.plant.id.clone()], sensor_name)
+                    .get_graphs(
+                        vec![self.plant.id.clone()],
+                        true,
+                        sensor_name,
+                        self.timerange.clone(),
+                    )
                     .unwrap_or_default();
                 let graph_data: Vec<GraphData> = data.iter().map(|(g, _)| g.clone()).collect();
                 self.plant.charts = PlantCharts::update_charts(
@@ -290,20 +373,31 @@ impl DetailPage {
                 } else {
                     self.plant.data.plantGroup.careTips =
                         self.careTips.split(';').map(|x| x.to_string()).collect();
-                    for (i, sensor) in enumerate(self.plant.data.plantGroup.sensorRanges.iter_mut())
-                    {
-                        sensor.max = self.sensor_border.clone()[i]
-                            .split(';')
-                            .next()
-                            .unwrap()
-                            .parse()
-                            .unwrap_or_default();
-                        sensor.min = self.sensor_border.clone()[i]
-                            .split(';')
-                            .last()
-                            .unwrap()
-                            .parse()
-                            .unwrap_or_default();
+                    for sensor in self.plant.data.plantGroup.sensorRanges.iter_mut() {
+                        for i in Sensortypes::iter() {
+                            if i.get_name() == sensor.sensorType.name {
+                                sensor.max = self
+                                    .sensor_border
+                                    .clone()
+                                    .get(i.get_name().as_str())
+                                    .unwrap()
+                                    .split(';')
+                                    .next()
+                                    .unwrap()
+                                    .parse()
+                                    .unwrap_or_default();
+                                sensor.min = self
+                                    .sensor_border
+                                    .clone()
+                                    .get(i.get_name().as_str())
+                                    .unwrap()
+                                    .split(';')
+                                    .last()
+                                    .unwrap()
+                                    .parse()
+                                    .unwrap_or_default();
+                            }
+                        }
                     }
                     self.modal = false;
                     Command::perform(
@@ -332,13 +426,20 @@ impl DetailPage {
                     self.careTips = value;
                 }
                 9 => {
-                    self.sensor_border[0] = value;
+                    self.sensor_border
+                        .insert(Sensortypes::Feuchtigkeit.get_name(), value);
                 }
                 10 => {
-                    self.sensor_border[1] = value;
+                    self.sensor_border
+                        .insert(Sensortypes::Luftfeuchtigkeit.get_name(), value);
                 }
                 11 => {
-                    self.sensor_border[2] = value;
+                    self.sensor_border
+                        .insert(Sensortypes::Temperatur.get_name(), value);
+                }
+                12 => {
+                    self.sensor_border
+                        .insert(Sensortypes::Licht.get_name(), value);
                 }
                 _ => {}
             },
@@ -495,22 +596,48 @@ impl Tab for DetailPage {
                                     .size(TEXT_SIZE),
                             )
                             .push(
-                                TextInput::new("Feuchtigkeitsgrenzwerte", &self.sensor_border[0])
-                                    .size(TEXT_SIZE)
-                                    .on_input(|input| DetailMessage::FieldUpdated(9, input)),
+                                TextInput::new(
+                                    "Feuchtigkeitsgrenzwerte",
+                                    &self
+                                        .sensor_border
+                                        .get(Sensortypes::Feuchtigkeit.get_name().as_str())
+                                        .unwrap(),
+                                )
+                                .size(TEXT_SIZE)
+                                .on_input(|input| DetailMessage::FieldUpdated(9, input)),
                             )
                             .push(
                                 TextInput::new(
                                     "Luftfeuchtigkeitsgrenzwerte",
-                                    &self.sensor_border[1],
+                                    &self
+                                        .sensor_border
+                                        .get(Sensortypes::Luftfeuchtigkeit.get_name().as_str())
+                                        .unwrap(),
                                 )
                                 .size(TEXT_SIZE)
                                 .on_input(|input| DetailMessage::FieldUpdated(10, input)),
                             )
                             .push(
-                                TextInput::new("Temperaturgrenzwerte", &self.sensor_border[2])
-                                    .size(TEXT_SIZE)
-                                    .on_input(|input| DetailMessage::FieldUpdated(11, input)),
+                                TextInput::new(
+                                    "Temperaturgrenzwerte",
+                                    &self
+                                        .sensor_border
+                                        .get(Sensortypes::Temperatur.get_name().as_str())
+                                        .unwrap(),
+                                )
+                                .size(TEXT_SIZE)
+                                .on_input(|input| DetailMessage::FieldUpdated(11, input)),
+                            )
+                            .push(
+                                TextInput::new(
+                                    "Lichtgrenzwerte",
+                                    &self
+                                        .sensor_border
+                                        .get(Sensortypes::Licht.get_name().as_str())
+                                        .unwrap(),
+                                )
+                                .size(TEXT_SIZE)
+                                .on_input(|input| DetailMessage::FieldUpdated(12, input)),
                             ),
                     )
                     .foot(
@@ -565,7 +692,7 @@ impl Tab for DetailPage {
                     .push(
                         Text::new(format!(
                             "Pflanzenbeschreibung: {}",
-                            plant.data.description.clone()
+                            self.insert_newline_to_string(plant.data.description.clone())
                         ))
                         .size(TEXT_SIZE),
                     )
@@ -615,6 +742,11 @@ impl Tab for DetailPage {
                     )
                     .spacing(20)
                     .push(
+                        Button::new(Text::new("Licht").size(TEXT_SIZE))
+                            .on_press(DetailMessage::SwitchGraph(Sensortypes::Licht)),
+                    )
+                    .spacing(20)
+                    .push(
                         Button::new(Text::new("Andere Pflanze anzeigen").size(TEXT_SIZE))
                             .on_press(DetailMessage::Load),
                     )
@@ -629,7 +761,23 @@ impl Tab for DetailPage {
                             .on_press(DetailMessage::OpenModalGroup),
                     )
                     .spacing(20);
-                let chart_col = Column::new().push(row).push(container);
+                let time_row = Row::new()
+                    .push(
+                        Button::new(Text::new("Letzte 6 Stunden").size(TEXT_SIZE))
+                            .on_press(DetailMessage::SwitchTime(chrono::Duration::hours(6))),
+                    )
+                    .spacing(20)
+                    .push(
+                        Button::new(Text::new("Letzte 12 Stunden").size(TEXT_SIZE))
+                            .on_press(DetailMessage::SwitchTime(chrono::Duration::hours(12))),
+                    )
+                    .spacing(20)
+                    .push(
+                        Button::new(Text::new("Gesamt").size(TEXT_SIZE))
+                            .on_press(DetailMessage::SwitchTime(chrono::Duration::weeks(100))),
+                    )
+                    .spacing(20);
+                let chart_col = Column::new().push(row).push(container).push(time_row);
                 let row = Row::new()
                     .push(detail_column)
                     .push(chart_col)
@@ -669,7 +817,11 @@ impl Tab for DetailPage {
                             .on_press(DetailMessage::Load),
                     )
                     .align_items(Center);
-                let column = Column::new().push(id_name_column).push(row);
+                let id_name_scrollable = scrollable::Scrollable::new(id_name_column);
+                let column = Column::new()
+                    .push(id_name_scrollable)
+                    .align_items(Center)
+                    .push(row);
                 let row = Row::new().push(column).spacing(20).align_items(Center);
                 row
             };

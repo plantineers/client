@@ -1,5 +1,3 @@
-use std::sync::Arc;
-// TODO: Give user not hardcoded credentials
 use crate::login::PlantBuddyRole;
 use crate::management::User;
 use base64::{engine::general_purpose, Engine as _};
@@ -9,6 +7,7 @@ use log::info;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use std::sync::Arc;
 use tokio::sync::Mutex;
 
 /// The endpoint of our API
@@ -44,7 +43,6 @@ impl Default for PlantGroupMetadata {
             name: String::new(),
             description: String::new(),
             careTips: vec![],
-            //TODO: Curse you hardcoded values
             sensorRanges: vec![
                 SensorRange {
                     sensorType: SensorType {
@@ -66,6 +64,14 @@ impl Default for PlantGroupMetadata {
                     sensorType: SensorType {
                         name: "temperature".to_string(),
                         unit: "celcius".to_string(),
+                    },
+                    min: 0,
+                    max: 0,
+                },
+                SensorRange {
+                    sensorType: SensorType {
+                        name: "light".to_string(),
+                        unit: "lux".to_string(),
                     },
                     min: 0,
                     max: 0,
@@ -157,35 +163,54 @@ impl ApiClient {
     #[tokio::main(flavor = "current_thread")]
     pub async fn get_graphs(
         self,
-        plant_ids: Vec<String>,
+        ids: Vec<String>,
+        plant: bool,
         sensor_type: String,
+        time_range: (String, String),
     ) -> RequestResult<Vec<(GraphData, String)>> {
         let client = self.client.lock().await;
         let mut tasks = vec![];
 
-        for plant_id in plant_ids {
+        for id in ids {
             let type_clone = sensor_type.clone();
+            let time_range_clone = time_range.clone();
+            info!("Getting time range: {:?}", time_range_clone);
             let client = client.clone();
+            let mut parameter = String::new();
+            if plant {
+                parameter = format!(
+                    "{}sensor-data?sensor={}&plant={}&from={}&to={}",
+                    ENDPOINT,
+                    type_clone,
+                    id,
+                    time_range_clone.0.clone(),
+                    time_range_clone.1.clone()
+                );
+            } else {
+                parameter = format!(
+                    "{}sensor-data?sensor={}&plantGroup={}&from={}&to={}",
+                    ENDPOINT,
+                    type_clone,
+                    id,
+                    time_range_clone.0.clone(),
+                    time_range_clone.1.clone()
+                );
+            }
             let task = tokio::spawn(async move {
-                //TODO: Make this endpoint configurable, current time
                 let response = client
-                    .get(&format!(
-                        "{}sensor-data?sensor={}&plant={}&from=2019-01-01T00:00:00.000Z&to=2023-07-29T23:00:00.000Z",
-                        ENDPOINT, type_clone, plant_id
-                    ))
-                    // FIXME: We should stop leaking the authentication data here, but for the testing DB it's fine for now
+                    .get(parameter)
                     .send()
-                    .await.map_err(|e| e.to_string())?;
+                    .await
+                    .map_err(|e| e.to_string())?;
 
                 let text = response.text().await.map_err(|e| e.to_string())?;
-                // FIXME: If we can get no data back the return type of our function should be an Option
                 if text != "{\"data\":null}" {
                     let value: Value = serde_json::from_str(&text).unwrap();
                     let data = value.get("data").unwrap();
                     let mut values = vec![];
                     let mut timestamps = vec![];
                     data.as_array().unwrap().iter().for_each(|x| {
-                        if type_clone != "humidity" {
+                        if type_clone == "temperature" {
                             let value = x.get("value").unwrap();
                             let timestamp = x.get("timestamp").unwrap();
                             values.push(value.as_f64().unwrap() as i32);
@@ -197,7 +222,7 @@ impl ApiClient {
                             timestamps.push(timestamp.as_str().unwrap().to_string());
                         }
                     });
-                    Ok((GraphData { values, timestamps }, plant_id))
+                    Ok((GraphData { values, timestamps }, id))
                 } else {
                     Err("No data found".to_string())
                 }
@@ -345,11 +370,11 @@ impl ApiClient {
         group_id: Option<String>,
     ) -> Result<(), reqwest::Error> {
         let mut json = serde_json::to_value(new_group.clone()).unwrap();
-        info!("Creating group with json: {:?}", json);
 
         for (i, sensor) in enumerate(new_group.sensorRanges.iter()) {
             json["sensorRanges"][i]["sensor"] = json!(sensor.sensorType.name);
         }
+        info!("Creating group with json: {:?}", json);
         let client = self.client.lock().await;
         let response = if group_id.is_none() {
             client
