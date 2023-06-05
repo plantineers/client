@@ -1,11 +1,11 @@
 use crate::graphs::{PlantChart, PlantCharts};
 
-//TODO: Groups shouldnt be deleted here, fix error handling
 use crate::requests::{GraphData, PlantGroupMetadata, PlantMetadata};
 use crate::{Icon, Message, MyStylesheet, Tab, API_CLIENT, TEXT_SIZE};
 use iced::alignment::{Horizontal, Vertical};
 use iced::futures::TryFutureExt;
-use iced::widget::{Button, Column, Container, Row, Text, TextInput};
+
+use iced::widget::{scrollable, Button, Column, Container, Row, Text, TextInput};
 use iced::{theme, Command, Element, Length};
 use iced_aw::tab_bar::TabLabel;
 use iced_aw::{Card, Modal};
@@ -27,7 +27,6 @@ pub struct DetailPlant {
 
 impl DetailPlant {
     pub fn new(id: String, graph_data: Vec<GraphData>) -> Self {
-        // TODO: Fix error handling, Message System
         let plant_data: (PlantMetadata, PlantGroupMetadata) = API_CLIENT
             .get()
             .unwrap()
@@ -50,6 +49,7 @@ impl DetailPlant {
 #[derive(Debug, Clone, PartialEq)]
 pub enum DetailMessage {
     OkButtonPressed,
+    SwitchTime(chrono::Duration),
     OpenModalPlant,
     OpenModalGroup,
     CloseModal,
@@ -65,6 +65,7 @@ pub enum DetailMessage {
 }
 
 pub(crate) struct DetailPage {
+    pub active_sensor: Sensortypes,
     pub timerange: (String, String),
     pub modal: bool,
     pub modal_is_plant: bool,
@@ -134,6 +135,7 @@ impl DetailPage {
             charts: PlantCharts::new(Vec::new(), DetailMessage::Loaded),
         };
         DetailPage {
+            active_sensor: Sensortypes::Feuchtigkeit,
             id_names: vec![],
             timerange: (
                 "2019-01-01T00:00:00.000Z".to_string(),
@@ -183,6 +185,16 @@ impl DetailPage {
     }
     pub fn update(&mut self, message: DetailMessage) -> Command<DetailMessage> {
         match message {
+            DetailMessage::SwitchTime(value) => {
+                info!("Switching time to {:?}", value);
+                let now = chrono::offset::Local::now();
+                let start = now - value;
+                self.timerange = (
+                    start.format("%Y-%m-%dT%H:%M:%S.000Z").to_string(),
+                    now.format("%Y-%m-%dT%H:%M:%S.000Z").to_string(),
+                );
+                return self.update(DetailMessage::SwitchGraph(self.active_sensor));
+            }
             DetailMessage::Pending => {
                 self.message = DetailMessage::Pending;
             }
@@ -200,7 +212,7 @@ impl DetailPage {
                 );
             }
             DetailMessage::Load => {
-                info!("Refresh");
+                info!("Refresh Id List");
                 //if empty self.id_names should be an empty vec
                 self.id_names = API_CLIENT
                     .get()
@@ -257,6 +269,8 @@ impl DetailPage {
                 self.message = DetailMessage::Loaded;
             }
             DetailMessage::SwitchGraph(sensor_types) => {
+                info!("Switching Graph to {:?}", sensor_types);
+                self.active_sensor = sensor_types;
                 let sensor_name = sensor_types.get_name();
                 let data = API_CLIENT
                     .get()
@@ -657,7 +671,23 @@ impl Tab for DetailPage {
                             .on_press(DetailMessage::OpenModalGroup),
                     )
                     .spacing(20);
-                let chart_col = Column::new().push(row).push(container);
+                let time_row = Row::new()
+                    .push(
+                        Button::new(Text::new("Letzte 6 Stunden").size(TEXT_SIZE))
+                            .on_press(DetailMessage::SwitchTime(chrono::Duration::hours(6))),
+                    )
+                    .spacing(20)
+                    .push(
+                        Button::new(Text::new("Letzte 12 Stunden").size(TEXT_SIZE))
+                            .on_press(DetailMessage::SwitchTime(chrono::Duration::hours(12))),
+                    )
+                    .spacing(20)
+                    .push(
+                        Button::new(Text::new("Gesamt").size(TEXT_SIZE))
+                            .on_press(DetailMessage::SwitchTime(chrono::Duration::weeks(100))),
+                    )
+                    .spacing(20);
+                let chart_col = Column::new().push(row).push(container).push(time_row);
                 let row = Row::new()
                     .push(detail_column)
                     .push(chart_col)
@@ -697,7 +727,11 @@ impl Tab for DetailPage {
                             .on_press(DetailMessage::Load),
                     )
                     .align_items(Center);
-                let column = Column::new().push(id_name_column).push(row);
+                let id_name_scrollable = scrollable::Scrollable::new(id_name_column);
+                let column = Column::new()
+                    .push(id_name_scrollable)
+                    .align_items(Center)
+                    .push(row);
                 let row = Row::new().push(column).spacing(20).align_items(Center);
                 row
             };
