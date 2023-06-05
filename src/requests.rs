@@ -70,6 +70,14 @@ impl Default for PlantGroupMetadata {
                     min: 0,
                     max: 0,
                 },
+                SensorRange {
+                    sensorType: SensorType {
+                        name: "light".to_string(),
+                        unit: "lux".to_string(),
+                    },
+                    min: 0,
+                    max: 0,
+                },
             ],
         }
     }
@@ -366,11 +374,11 @@ impl ApiClient {
         group_id: Option<String>,
     ) -> Result<(), reqwest::Error> {
         let mut json = serde_json::to_value(new_group.clone()).unwrap();
-        info!("Creating group with json: {:?}", json);
 
         for (i, sensor) in enumerate(new_group.sensorRanges.iter()) {
             json["sensorRanges"][i]["sensor"] = json!(sensor.sensorType.name);
         }
+        info!("Creating group with json: {:?}", json);
         let client = self.client.lock().await;
         let response = if group_id.is_none() {
             client

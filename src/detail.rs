@@ -81,6 +81,7 @@ pub enum Sensortypes {
     Feuchtigkeit,
     Luftfeuchtigkeit,
     Temperatur,
+    Licht,
 }
 impl Display for Sensortypes {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -88,6 +89,7 @@ impl Display for Sensortypes {
             Sensortypes::Feuchtigkeit => write!(f, "Feuchtigkeit"),
             Sensortypes::Luftfeuchtigkeit => write!(f, "Luftfeuchtigkeit"),
             Sensortypes::Temperatur => write!(f, "Temperatur"),
+            Sensortypes::Licht => write!(f, "Licht"),
         }
     }
 }
@@ -97,6 +99,7 @@ impl Sensortypes {
             Sensortypes::Feuchtigkeit => String::from("soil-moisture"),
             Sensortypes::Luftfeuchtigkeit => String::from("humidity"),
             Sensortypes::Temperatur => String::from("temperature"),
+            Sensortypes::Licht => String::from("light"),
         }
     }
     pub fn get_color(&self) -> RGBColor {
@@ -104,6 +107,7 @@ impl Sensortypes {
             Sensortypes::Feuchtigkeit => RGBColor(0, 0, 255),
             Sensortypes::Luftfeuchtigkeit => RGBColor(0, 255, 0),
             Sensortypes::Temperatur => RGBColor(255, 0, 0),
+            Sensortypes::Licht => RGBColor(255, 255, 0),
         }
     }
     pub fn get_color_with_random_offset(&self) -> RGBColor {
@@ -115,6 +119,7 @@ impl Sensortypes {
             Sensortypes::Feuchtigkeit => RGBColor(offset, offset2, 255 - offset3),
             Sensortypes::Luftfeuchtigkeit => RGBColor(offset, 255 - offset3, offset2),
             Sensortypes::Temperatur => RGBColor(255 - offset3, offset, offset2),
+            Sensortypes::Licht => RGBColor(255 - offset3, 255 - offset3.clone(), offset),
         }
     }
     pub fn iter() -> impl Iterator<Item = Sensortypes> {
@@ -146,7 +151,7 @@ impl DetailPage {
             modal: false,
             modal_is_plant: true,
             careTips: String::new(),
-            sensor_border: vec!["".to_string(); 3],
+            sensor_border: vec!["".to_string(); 4],
             additionalCareTips: String::new(),
             plant,
             message: DetailMessage::Pending,
@@ -252,13 +257,16 @@ impl DetailPage {
                     .iter()
                     .for_each(|x| match x.sensorType.name.as_str() {
                         "soil-moisture" => {
-                            self.sensor_border[1] = format!("{};{}", x.max, x.min);
+                            self.sensor_border[2] = format!("{};{}", x.max, x.min);
                         }
                         "humidity" => {
                             self.sensor_border[0] = format!("{};{}", x.max, x.min);
                         }
                         "temperature" => {
-                            self.sensor_border[2] = format!("{};{}", x.max, x.min);
+                            self.sensor_border[3] = format!("{};{}", x.max, x.min);
+                        }
+                        "light" => {
+                            self.sensor_border[1] = format!("{};{}", x.max, x.min);
                         }
                         _ => {}
                     });
@@ -345,6 +353,8 @@ impl DetailPage {
                             .unwrap()
                             .parse()
                             .unwrap_or_default();
+                        info!("Sensor: {:?}", sensor);
+                        info!("Sensor border: {:?}", self.sensor_border.clone()[i]);
                     }
                     self.modal = false;
                     Command::perform(
@@ -373,13 +383,16 @@ impl DetailPage {
                     self.careTips = value;
                 }
                 9 => {
-                    self.sensor_border[1] = value;
+                    self.sensor_border[2] = value;
                 }
                 10 => {
                     self.sensor_border[0] = value;
                 }
                 11 => {
-                    self.sensor_border[2] = value;
+                    self.sensor_border[3] = value;
+                }
+                12 => {
+                    self.sensor_border[1] = value;
                 }
                 _ => {}
             },
@@ -537,7 +550,7 @@ impl Tab for DetailPage {
                                     .size(TEXT_SIZE),
                             )
                             .push(
-                                TextInput::new("Feuchtigkeitsgrenzwerte", &self.sensor_border[1])
+                                TextInput::new("Feuchtigkeitsgrenzwerte", &self.sensor_border[2])
                                     .size(TEXT_SIZE)
                                     .on_input(|input| DetailMessage::FieldUpdated(9, input)),
                             )
@@ -550,9 +563,14 @@ impl Tab for DetailPage {
                                 .on_input(|input| DetailMessage::FieldUpdated(10, input)),
                             )
                             .push(
-                                TextInput::new("Temperaturgrenzwerte", &self.sensor_border[2])
+                                TextInput::new("Temperaturgrenzwerte", &self.sensor_border[3])
                                     .size(TEXT_SIZE)
                                     .on_input(|input| DetailMessage::FieldUpdated(11, input)),
+                            )
+                            .push(
+                                TextInput::new("Lichtgrenzwerte", &self.sensor_border[1])
+                                    .size(TEXT_SIZE)
+                                    .on_input(|input| DetailMessage::FieldUpdated(12, input)),
                             ),
                     )
                     .foot(
@@ -654,6 +672,11 @@ impl Tab for DetailPage {
                     .push(
                         Button::new(Text::new("Temperatur").size(TEXT_SIZE))
                             .on_press(DetailMessage::SwitchGraph(Sensortypes::Temperatur)),
+                    )
+                    .spacing(20)
+                    .push(
+                        Button::new(Text::new("Licht").size(TEXT_SIZE))
+                            .on_press(DetailMessage::SwitchGraph(Sensortypes::Licht)),
                     )
                     .spacing(20)
                     .push(

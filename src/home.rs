@@ -74,7 +74,12 @@ impl HomePage {
             group: String::new(),
             group_ids: Vec::new(),
             new_group: PlantGroupMetadata::default(),
-            sensor_border: vec!["".to_string(), "".to_string(), "".to_string()],
+            sensor_border: vec![
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            ],
             sensor_data: HashMap::new(),
         }
     }
@@ -207,6 +212,9 @@ impl HomePage {
                 }
                 12 => {
                     self.selected_group = value;
+                }
+                13 => {
+                    self.sensor_border[3] = value;
                 }
                 _ => (),
             },
@@ -425,6 +433,11 @@ impl Tab for HomePage {
                                     TextInput::new("Temperaturgrenzwerte", &self.sensor_border[2])
                                         .size(TEXT_SIZE)
                                         .on_input(|input| HomeMessage::FieldUpdated(11, input)),
+                                )
+                                .push(
+                                    TextInput::new("Lichtgrenzwerte", &self.sensor_border[3])
+                                        .size(TEXT_SIZE)
+                                        .on_input(|input| HomeMessage::FieldUpdated(13, input)),
                                 ),
                         )
                         .foot(
@@ -475,8 +488,8 @@ impl Tab for HomePage {
                 )
                 .spacing(20)
                 .push(
-                    Button::new(Text::new("Temperatur").size(TEXT_SIZE))
-                        .on_press(HomeMessage::SwitchGraph(Sensortypes::Temperatur)),
+                    Button::new(Text::new("Feuchtigkeit").size(TEXT_SIZE))
+                        .on_press(HomeMessage::SwitchGraph(Sensortypes::Feuchtigkeit)),
                 )
                 .spacing(20)
                 .push(
@@ -485,8 +498,13 @@ impl Tab for HomePage {
                 )
                 .spacing(20)
                 .push(
-                    Button::new(Text::new("Feuchtigkeit").size(TEXT_SIZE))
-                        .on_press(HomeMessage::SwitchGraph(Sensortypes::Feuchtigkeit)),
+                    Button::new(Text::new("Temperatur").size(TEXT_SIZE))
+                        .on_press(HomeMessage::SwitchGraph(Sensortypes::Temperatur)),
+                )
+                .spacing(20)
+                .push(
+                    Button::new(Text::new("Licht").size(TEXT_SIZE))
+                        .on_press(HomeMessage::SwitchGraph(Sensortypes::Licht)),
                 );
             let lower_row: Row<HomeMessage, Renderer> = Row::new()
                 .push(
