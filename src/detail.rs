@@ -11,7 +11,6 @@ use iced::{theme, Command, Element, Length};
 use iced_aw::tab_bar::TabLabel;
 use iced_aw::{Card, Modal};
 use iced_core::Alignment::Center;
-use itertools::enumerate;
 use log::info;
 use plotters::prelude::*;
 use plotters_iced::ChartWidget;
@@ -25,7 +24,6 @@ pub struct DetailPlant {
     pub data: PlantMetadata,
     pub charts: PlantCharts<DetailMessage>,
 }
-
 impl DetailPlant {
     pub fn new(id: String, graph_data: Vec<GraphData>) -> Self {
         let plant_data: (PlantMetadata, PlantGroupMetadata) = API_CLIENT
@@ -159,6 +157,21 @@ impl DetailPage {
             message: DetailMessage::Pending,
         }
     }
+    pub fn insert_newline_to_string(&self, string: String) -> String {
+        let mut new_string = String::new();
+        let mut counter = 0;
+        let words = string.split_whitespace();
+        for word in words {
+            counter += word.len();
+            if counter > 30 {
+                new_string.push('\n');
+                counter = 0;
+            }
+            new_string.push_str(word);
+            new_string.push(' ');
+        }
+        new_string
+    }
     pub fn min_max_graphs(&self, sensor_types: Sensortypes) -> Vec<PlantChart> {
         let mut charts = vec![];
         self.plant
@@ -208,7 +221,6 @@ impl DetailPage {
             DetailMessage::Delete => {
                 let plant_id = self.plant.id.clone();
                 return Command::perform(
-                    // TODO: Error handling here by not unwrapping
                     API_CLIENT
                         .get()
                         .unwrap()
@@ -243,10 +255,12 @@ impl DetailPage {
                     .unwrap_or_default();
                 let graph_data: Vec<GraphData> = data.iter().map(|(g, _)| g.clone()).collect();
                 self.plant = DetailPlant::new(id, graph_data);
+                self.additionalCareTips = String::new();
                 self.plant.data.additionalCareTips.iter().for_each(|x| {
                     self.additionalCareTips.push_str(x);
                     self.additionalCareTips.push(';');
                 });
+                self.careTips = String::new();
                 self.plant.data.plantGroup.careTips.iter().for_each(|x| {
                     self.careTips.push_str(x);
                     self.careTips.push(';');
@@ -258,7 +272,6 @@ impl DetailPage {
                     .sensorRanges
                     .iter()
                     .for_each(|x| match x.sensorType.name.as_str() {
-                        //TODO: Maybe get sensors from Api and match them here to a hashmap
                         "soil-moisture" => {
                             self.sensor_border.insert(
                                 Sensortypes::Feuchtigkeit.get_name(),
@@ -363,7 +376,6 @@ impl DetailPage {
                     for sensor in self.plant.data.plantGroup.sensorRanges.iter_mut() {
                         for i in Sensortypes::iter() {
                             if i.get_name() == sensor.sensorType.name {
-                                    .collect::<Vec<&str>>();
                                 sensor.max = self
                                     .sensor_border
                                     .clone()
@@ -553,7 +565,6 @@ impl Tab for DetailPage {
                         .align_x(Horizontal::Center)
                         .align_y(Vertical::Center);
                 let content: Element<'_, DetailMessage> = Modal::new(self.modal, container, || {
-                    // Todo: Is there a possibility to make this more generic?
                     Card::new(
                         Text::new("Gruppe bearbeiten")
                             .size(TEXT_SIZE)
@@ -681,7 +692,7 @@ impl Tab for DetailPage {
                     .push(
                         Text::new(format!(
                             "Pflanzenbeschreibung: {}",
-                            plant.data.description.clone()
+                            self.insert_newline_to_string(plant.data.description.clone())
                         ))
                         .size(TEXT_SIZE),
                     )

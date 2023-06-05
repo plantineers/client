@@ -229,7 +229,6 @@ impl HomePage {
                         .collect();
                     self.show_modal = false;
                     Command::perform(
-                        // TODO: Give feedback to the user
                         API_CLIENT.get().unwrap().clone().create_plant(
                             self.new_plant.clone(),
                             self.group.clone().parse().unwrap_or_default(),

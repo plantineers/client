@@ -1,5 +1,3 @@
-use std::sync::Arc;
-// TODO: Give user not hardcoded credentials
 use crate::login::PlantBuddyRole;
 use crate::management::User;
 use base64::{engine::general_purpose, Engine as _};
@@ -9,6 +7,7 @@ use log::info;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use std::sync::Arc;
 use tokio::sync::Mutex;
 
 /// The endpoint of our API
@@ -44,7 +43,6 @@ impl Default for PlantGroupMetadata {
             name: String::new(),
             description: String::new(),
             careTips: vec![],
-            //TODO: Curse you hardcoded values
             sensorRanges: vec![
                 SensorRange {
                     sensorType: SensorType {
@@ -199,7 +197,6 @@ impl ApiClient {
                 );
             }
             let task = tokio::spawn(async move {
-                //TODO: Make this endpoint configurable, current time
                 let response = client
                     .get(parameter)
                     .send()
@@ -207,7 +204,6 @@ impl ApiClient {
                     .map_err(|e| e.to_string())?;
 
                 let text = response.text().await.map_err(|e| e.to_string())?;
-                // FIXME: If we can get no data back the return type of our function should be an Option
                 if text != "{\"data\":null}" {
                     let value: Value = serde_json::from_str(&text).unwrap();
                     let data = value.get("data").unwrap();
