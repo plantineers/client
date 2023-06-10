@@ -160,3 +160,53 @@ impl<M: 'static + Clone> PlantCharts<M> {
             .into()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use plotters::style::RED;
+
+    #[test]
+    fn test_plant_chart_new() {
+        let chart = PlantChart::new("Test".to_string(), vec![1, 2, 3], vec![4, 5, 6], RED);
+        assert_eq!(chart.name, "Test");
+        assert_eq!(chart.x, vec![1, 2, 3]);
+        assert_eq!(chart.y, vec![4, 5, 6]);
+        assert_eq!(chart.get_color(), RED);
+    }
+
+    #[test]
+    fn test_plant_chart_test() {
+        let chart = PlantChart::test();
+        assert_eq!(chart.name, "Test");
+        assert_eq!(chart.x, vec![0, 0, 0, 0, 0, 0]);
+        assert_eq!(chart.y, vec![0, 1, 2, 3, 4, 5]);
+        assert_eq!(chart.get_color(), BLUE);
+    }
+
+    #[test]
+    fn test_plant_charts_new() {
+        let message = "Message".to_string();
+        let chart1 = PlantChart::new("Test1".to_string(), vec![1, 2, 3], vec![4, 5, 6], RED);
+        let chart2 = PlantChart::new("Test2".to_string(), vec![1, 2, 3], vec![4, 5, 6], BLUE);
+        let charts = PlantCharts::new(vec![chart1, chart2], message.clone());
+        assert_eq!(charts.charts.len(), 2);
+        assert_eq!(charts.message, message);
+    }
+
+    #[test]
+    fn test_plant_charts_test() {
+        let message = "Message".to_string();
+        let charts = PlantCharts::test(message.clone());
+        assert_eq!(charts.charts.len(), 1);
+        assert_eq!(charts.message, message);
+    }
+
+    #[test]
+    fn test_largest_x_y() {
+        let chart1 = PlantChart::new("Test1".to_string(), vec![1, 2, 3], vec![4, 5, 6], RED);
+        let chart2 = PlantChart::new("Test2".to_string(), vec![7, 8, 9], vec![10, 11, 12], BLUE);
+        let charts = PlantCharts::new(vec![chart1, chart2], "Message".to_string());
+        assert_eq!(charts.largest_x_y(), (9, 12));
+    }
+}

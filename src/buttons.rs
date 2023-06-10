@@ -50,3 +50,60 @@ impl StyleSheet for CustomButtonStyle {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_custom_button_style_default() {
+        let style = CustomButtonStyle::default();
+        assert_eq!(style.background, Color::default());
+        assert_eq!(style.text_color, Color::default());
+        assert_eq!(style.border_color, Color::default());
+    }
+
+    #[test]
+    fn test_button_style_active_primary() {
+        let button_style = CustomButtonStyle {
+            background: Color::default(),
+            text_color: Color::default(),
+            border_color: Color::default(),
+        };
+        let appearance = button_style.active(&Button::Primary);
+        assert_eq!(
+            appearance.background,
+            Some(Background::Color(Color::from_rgb(
+                5.0 / 255.0,
+                59.0 / 255.0,
+                6.0 / 255.0
+            )))
+        );
+        assert_eq!(appearance.border_radius, 12.0);
+        assert_eq!(appearance.border_width, 0.0);
+        assert_eq!(appearance.border_color, Color::default());
+        assert_eq!(appearance.text_color, Color::default());
+    }
+
+    #[test]
+    fn test_button_style_active_secondary() {
+        let button_style = CustomButtonStyle {
+            background: Color::default(),
+            text_color: Color::default(),
+            border_color: Color::default(),
+        };
+        let appearance = button_style.active(&Button::Secondary);
+        assert_eq!(
+            appearance.background,
+            Some(Background::Color(Color::from_rgb(
+                5.0 / 255.0,
+                59.0 / 255.0,
+                6.0 / 255.0
+            )))
+        );
+        assert_eq!(appearance.border_radius, 12.0);
+        assert_eq!(appearance.border_width, 0.0);
+        assert_eq!(appearance.border_color, Color::default());
+        assert_eq!(appearance.text_color, Color::default());
+    }
+}

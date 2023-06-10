@@ -835,3 +835,58 @@ impl Tab for DetailPage {
         }
     }
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_sensortypes_get_name() {
+        let sensor_type = Sensortypes::Feuchtigkeit;
+        assert_eq!(sensor_type.get_name(), "soil-moisture");
+    }
+
+    #[test]
+    fn test_sensortypes_get_color() {
+        let sensor_type = Sensortypes::Feuchtigkeit;
+        assert_eq!(sensor_type.get_color(), RGBColor(0, 0, 255));
+    }
+
+    #[test]
+    fn test_sensortypes_iter() {
+        let sensor_types: Vec<_> = Sensortypes::iter().collect();
+        assert_eq!(
+            sensor_types,
+            vec![
+                Sensortypes::Feuchtigkeit,
+                Sensortypes::Luftfeuchtigkeit,
+                Sensortypes::Temperatur,
+                Sensortypes::Licht
+            ]
+        );
+    }
+
+    #[test]
+    fn test_detail_page_insert_newline_to_string() {
+        let detail_page = DetailPage::new();
+        let string = "Lorem ipsum dolor sit amet, consectetur adipiscing elit.";
+        let expected = "Lorem ipsum dolor sit amet, \nconsectetur adipiscing elit. ";
+        assert_eq!(
+            detail_page.insert_newline_to_string(string.to_string()),
+            expected
+        );
+    }
+
+    #[test]
+    fn test_detail_page_new() {
+        let detail_page = DetailPage::new();
+        assert_eq!(detail_page.active_sensor, Sensortypes::Feuchtigkeit);
+        assert_eq!(detail_page.id_names, vec![]);
+        assert_eq!(detail_page.modal, false);
+        assert_eq!(detail_page.modal_is_plant, true);
+        assert_eq!(detail_page.careTips, String::new());
+        assert_eq!(detail_page.sensor_border, HashMap::new());
+        assert_eq!(detail_page.additionalCareTips, String::new());
+        assert_eq!(detail_page.message, DetailMessage::Pending);
+    }
+}

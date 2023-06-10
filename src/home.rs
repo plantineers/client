@@ -552,3 +552,60 @@ impl Tab for HomePage {
         }
     }
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_home_page_creation() {
+        let page = HomePage::new();
+
+        assert_eq!(page.timerange.0, "2019-01-01T00:00:00.000Z".to_string());
+        assert_eq!(page.show_modal, false);
+        assert_eq!(page.modal_is_plant, true);
+        assert_eq!(page.new_plant, PlantMetadata::default());
+        assert_eq!(page.new_group, PlantGroupMetadata::default());
+        assert_eq!(page.active_sensor, Sensortypes::Luftfeuchtigkeit);
+    }
+
+    #[test]
+    fn test_field_updated() {
+        let mut page = HomePage::new();
+        let index = 0;
+        let value = String::from("My plant");
+
+        page.update(HomeMessage::FieldUpdated(index, value.clone()));
+
+        assert_eq!(page.new_plant.name, value);
+    }
+
+    #[test]
+    fn test_open_modal_plant() {
+        let mut page = HomePage::new();
+
+        page.update(HomeMessage::OpenModalPlant);
+
+        assert_eq!(page.show_modal, true);
+        assert_eq!(page.modal_is_plant, true);
+    }
+
+    #[test]
+    fn test_open_modal_group() {
+        let mut page = HomePage::new();
+
+        page.update(HomeMessage::OpenModalGroup);
+
+        assert_eq!(page.show_modal, true);
+        assert_eq!(page.modal_is_plant, false);
+    }
+
+    #[test]
+    fn test_close_modal() {
+        let mut page = HomePage::new();
+        page.show_modal = true;
+
+        page.update(HomeMessage::CloseModal);
+
+        assert_eq!(page.show_modal, false);
+    }
+}

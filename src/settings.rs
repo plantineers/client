@@ -131,3 +131,64 @@ fn predefined_style(index: usize) -> TabBarStyles {
         _ => TabBarStyles::Default,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_tab_settings_new() {
+        let settings = TabSettings::new();
+        assert_eq!(settings.tab_bar_position, Some(TabBarPosition::Top));
+        assert_eq!(settings.tab_bar_theme, Some(TabBarStyles::Green));
+    }
+
+    #[test]
+    fn test_settings_tab_new() {
+        let settings_tab = SettingsTab::new();
+        assert_eq!(
+            settings_tab.settings().tab_bar_position,
+            Some(TabBarPosition::Top)
+        );
+        assert_eq!(
+            settings_tab.settings().tab_bar_theme,
+            Some(TabBarStyles::Green)
+        );
+    }
+
+    #[test]
+    fn test_settings_tab_update_position() {
+        let mut settings_tab = SettingsTab::new();
+        settings_tab.update(SettingsMessage::PositionSelected(TabBarPosition::Bottom));
+        assert_eq!(
+            settings_tab.settings().tab_bar_position,
+            Some(TabBarPosition::Bottom)
+        );
+    }
+
+    #[test]
+    fn test_settings_tab_update_theme() {
+        let mut settings_tab = SettingsTab::new();
+        settings_tab.update(SettingsMessage::ThemeSelected(TabBarStyles::Red));
+        assert_eq!(
+            settings_tab.settings().tab_bar_theme,
+            Some(TabBarStyles::Red)
+        );
+    }
+
+    #[test]
+    fn test_settings_tab_title() {
+        let settings_tab = SettingsTab::new();
+        assert_eq!(settings_tab.title(), String::from("Settings"));
+    }
+
+    #[test]
+    fn test_predefined_style() {
+        assert_eq!(predefined_style(0), TabBarStyles::Default);
+        assert_eq!(predefined_style(1), TabBarStyles::Red);
+        assert_eq!(predefined_style(2), TabBarStyles::Blue);
+        assert_eq!(predefined_style(3), TabBarStyles::Green);
+        assert_eq!(predefined_style(4), TabBarStyles::Purple);
+        assert_eq!(predefined_style(100), TabBarStyles::Default); // Testing an index out of range should return the Default style.
+    }
+}

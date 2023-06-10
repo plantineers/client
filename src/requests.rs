@@ -16,26 +16,41 @@ const ENDPOINT: &str = "https://pb.mfloto.com/v1/";
 /// Represents the result of a request.
 pub type RequestResult<T> = Result<T, String>;
 
-#[derive(Deserialize, Debug, Clone, Default, Serialize)]
+///`PlantMetadata` struct is used to represent the metadata related to a single plant.
+#[derive(Deserialize, Debug, Clone, Default, Serialize, PartialEq)]
 pub struct PlantMetadata {
+    /// * `name`: A string that represents the name of the plant.
     pub name: String,
+    /// * `description`: A string that describes the plant.
     pub description: String,
+    /// * `species`: A string that identifies the species of the plant.
     pub species: String,
+    /// * `location`: A string that represents where the plant is located.
     pub location: String,
+    /// * `additionalCareTips`: A vector of strings, each string representing an additional care tip for the plant.
     pub additionalCareTips: Vec<String>,
+    /// * `plantGroup`: An instance of `PlantGroupMetadata` struct which includes metadata about the plant group this plant belongs to. This field is not serialized when the `PlantMetadata` is serialized.
     #[serde(skip_serializing)]
     pub plantGroup: PlantGroupMetadata,
 }
 
-#[derive(Deserialize, Debug, Clone, Serialize)]
+/// `PlantGroupMetadata` struct is used to represent the metadata related to a group of plants.
+#[derive(Deserialize, Debug, Clone, Serialize, PartialEq)]
 pub struct PlantGroupMetadata {
+    ///`id`: An integer that represents the id of the plant group. This field is not serialized when the `PlantGroupMetadata` is serialized.
     #[serde(skip_serializing)]
     pub id: i32,
+    /// * `name`: A string that represents the name of the plant group.
     pub name: String,
+    /// * `description`: A string that describes the plant group.
     pub description: String,
+    /// * `careTips`: A vector of strings, each string representing a care tip for the plants in the group.
     pub careTips: Vec<String>,
+    /// * `sensorRanges`: A vector of `SensorRange` structs, each representing the acceptable sensor range for the plants in the group.
     pub sensorRanges: Vec<SensorRange>,
 }
+
+/// Implements the default trait for PlantGroupMetadata
 impl Default for PlantGroupMetadata {
     fn default() -> Self {
         PlantGroupMetadata {
@@ -82,7 +97,7 @@ impl Default for PlantGroupMetadata {
 }
 
 /// Represents a the SensorRagen for a given SensorType
-#[derive(Deserialize, Debug, Clone, Default, Serialize)]
+#[derive(Deserialize, Debug, Clone, Default, Serialize, PartialEq)]
 pub struct SensorRange {
     #[serde(skip_serializing)]
     pub sensorType: SensorType,
@@ -91,7 +106,7 @@ pub struct SensorRange {
 }
 
 /// Represents a sensor type
-#[derive(Deserialize, Debug, Clone, Default, Serialize)]
+#[derive(Deserialize, Debug, Clone, Default, Serialize, PartialEq)]
 pub struct SensorType {
     pub name: String,
     pub unit: String,
@@ -128,6 +143,7 @@ pub(crate) struct ApiClient {
 }
 
 impl ApiClient {
+    /// Creates a new ApiClient
     #[must_use]
     pub fn new(username: String, password: String) -> Self {
         Self {
@@ -137,6 +153,7 @@ impl ApiClient {
             ))),
         }
     }
+    /// Builds a new client with the given credentials
     fn build_client(username: String, password: String) -> Client {
         Client::builder()
             .default_headers({
@@ -154,12 +171,16 @@ impl ApiClient {
             .build()
             .unwrap()
     }
+
+    /// Replaces the inner client with a new one with the given credentials
     #[tokio::main(flavor = "current_thread")]
     pub async fn replace_inner(self, username: String, password: String) {
         let new_client = Self::build_client(username, password);
         let mut client_lock = self.client.lock().await;
         *client_lock = new_client
     }
+
+    /// Gets the plants from the API
     #[tokio::main(flavor = "current_thread")]
     pub async fn get_graphs(
         self,
@@ -375,6 +396,7 @@ impl ApiClient {
             json["sensorRanges"][i]["sensor"] = json!(sensor.sensorType.name);
         }
         info!("Creating group with json: {:?}", json);
+        println!("Creating group with json: {:?}", json);
         let client = self.client.lock().await;
         let response = if group_id.is_none() {
             client
@@ -672,5 +694,32 @@ mod tests {
         let password = "testpassword".to_string();
         let result = encode_credentials(username, password);
         assert_eq!(result, "dGVzdHVzZXI6dGVzdHBhc3N3b3Jk");
+    }
+
+    #[tokio::test]
+    async fn test_create_plant() {
+        let username = "testuser".to_string();
+        let password = "testpassword".to_string();
+        let api_client = ApiClient::new(username, password);
+        let mut new_plant = PlantMetadata::default();
+        let random: u32 = random();
+        new_plant.name = random.to_string();
+        let plant_group_id = 1;
+        let result = api_client
+            .create_plant(new_plant, plant_group_id, None)
+            .await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_create_group() {
+        let username = "testuser".to_string();
+        let password = "testpassword".to_string();
+        let api_client = ApiClient::new(username, password);
+        let mut new_group = PlantGroupMetadata::default();
+        let random: u32 = random();
+        new_group.name = random.to_string();
+        let result = api_client.create_group(new_group, None).await;
+        assert!(result.is_ok());
     }
 }

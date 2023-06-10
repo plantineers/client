@@ -10,6 +10,7 @@
 //!  everal utility functions and constants, such as the Icon enum, which defines the icons used in the
 //! application, and the EXTERNAL_ICON_FONT constant, which defines the font used for the icons.
 
+mod buttons;
 mod detail;
 mod graphs;
 mod home;
