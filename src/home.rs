@@ -16,19 +16,50 @@ use plotters_iced::ChartWidget;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
+/// The message of the home page
 pub enum HomeMessage {
+    /// Open the modal to add a new plant
     OpenModalPlant,
+    /// Open the modal to add a new group
     OpenModalGroup,
+    /// Close the modal
     CloseModal,
+    /// The cancel button was pressed
     CancelButtonPressed,
+    /// The ok button was pressed, the data is sent to the server
     OkButtonPressed,
+    /// An empty message to do nothing
     Plant,
+    /// Deletes the selected group
     DeleteGroup,
+    /// Refresh the page
     Refresh,
+    /// Change the graphs to the selected sensor
     SwitchGraph(Sensortypes),
+    /// Updates the variable to match the input
     FieldUpdated(u8, String),
 }
 
+/// The home page
+///
+/// Fields:
+/// - `timerange`: The timerange of the graphs
+/// - `selected_group`: The selected group
+/// - `group_name_id`: The names and ids of the groups
+/// - `show_modal`: If the modal is shown
+/// - `modal_is_plant`: If the modal is for a plant
+/// - `new_plant`: The data of the new plant
+/// - `new_group`: The data of the new group
+/// - `additionalCareTips`: The additional care tips of the new plant only for the plant
+/// - `sensor_border`: The border of the sensor
+/// - `careTips`: The care tips of the new plant for the plant and the group
+/// - `group`: The group of the new plant
+/// - `charts`: The charts of all groups for the selected sensor
+/// - `active_sensor`: The active sensor
+/// - `group_ids`: The ids of the groups
+/// - `id_names`: The ids and names of the plants
+///  - `group_names`: The names of the groups
+/// - `sensor_data`: The graph data of the sensors if the sensor was already selected
 pub(crate) struct HomePage {
     timerange: (String, String),
     selected_group: String,
@@ -50,6 +81,7 @@ pub(crate) struct HomePage {
 }
 
 impl HomePage {
+    /// Creates a new home page
     pub fn new() -> Self {
         let vec_chart = Vec::new();
         let charts = PlantCharts::new(vec_chart, HomeMessage::Plant);
@@ -84,6 +116,7 @@ impl HomePage {
         }
     }
 
+    /// Handles the messages of the home page
     pub fn update(&mut self, message: HomeMessage) -> Command<HomeMessage> {
         match message {
             HomeMessage::DeleteGroup => {
@@ -271,13 +304,16 @@ impl HomePage {
 impl Tab for HomePage {
     type Message = Message;
 
+    /// Sets the title of the page
     fn title(&self) -> String {
         String::from("Dashboard")
     }
 
+    /// Sets the label of the tab
     fn tab_label(&self) -> TabLabel {
         TabLabel::IconText(Icon::Homescreen.into(), self.title())
     }
+    /// Sets the content of the page
     fn content(&self) -> Element<'_, Self::Message> {
         if self.show_modal {
             if self.modal_is_plant {

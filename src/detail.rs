@@ -18,6 +18,12 @@ use rand::Rng;
 use std::fmt::{Display, Formatter};
 use std::vec;
 
+/// Stores all information about a plant that is displayed on the detail page
+///
+/// Arguments:
+/// * `id` - The id of the plant that is displayed
+/// * `data` - The metadata of the plant, containing f.e. the name
+/// * `charts` - The charts of the plant, containing the coordinates and the message
 #[derive(Debug, Clone)]
 pub struct DetailPlant {
     pub id: String,
@@ -45,24 +51,52 @@ impl DetailPlant {
         }
     }
 }
+/// Contains all possible messages that can be sent to the detail page
 #[derive(Debug, Clone, PartialEq)]
 pub enum DetailMessage {
+    /// Closes the modal and sends the changes of the plant or group to the server
     OkButtonPressed,
+    /// Sets the message to pending to display the overview
     SwitchTime(chrono::Duration),
+    /// Opens the modal to edit the plant
     OpenModalPlant,
+    /// Opens the modal to edit the group
     OpenModalGroup,
+    /// Closes the modal
     CloseModal,
+    /// Deletes the plant
     Delete,
+    /// The message is pending, the overview is displayed
     Pending,
+    /// Loads the data of the plant
     Load,
+    /// Gets the data of the plant
     PlantData(String),
+    /// Indicates that the plant data was loaded
     Loaded,
+    /// Switches the graph to the given sensor
     SwitchGraph(Sensortypes),
+    /// Handles the input of the plant id to search for a plant
     Search(String),
+    /// Handles the input of the plant or group metadata
     FieldUpdated(u8, String),
+    /// Indicates that the plant was deleted
     DeleteSuccess,
 }
 
+/// Contains all information about the detail page
+///
+/// Fields:
+/// * `active_sensor` - The sensor that is currently displayed
+/// * `timerange` - The timerange that is currently displayed
+/// * `modal` - Indicates if the modal is open
+/// * `modal_is_plant` - Indicates if the modal is open for a plant or a group
+/// * `additionalCareTips` - The additional care tips of the plant only for this plant
+/// * `careTips` - The care tips of the plant for all plants of this group
+/// * `sensor_border` - The min max values of the sensor
+/// * `id_names` - The id and name of the plant
+/// * `plant` - The plant that is displayed
+/// * `message` - The message that is currently displayed
 pub(crate) struct DetailPage {
     pub active_sensor: Sensortypes,
     pub timerange: (String, String),
@@ -75,14 +109,22 @@ pub(crate) struct DetailPage {
     pub plant: DetailPlant,
     pub message: DetailMessage,
 }
+
+/// Contains all available sensors, their names, and colors
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Sensortypes {
+    /// Soil moisture sensor
     Feuchtigkeit,
+    /// Humidity sensor
     Luftfeuchtigkeit,
+    /// Temperature sensor
     Temperatur,
+    /// Light sensor
     Licht,
 }
+
 impl Display for Sensortypes {
+    /// Returns the sensor name as a string
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Sensortypes::Feuchtigkeit => write!(f, "Feuchtigkeit"),
@@ -92,7 +134,9 @@ impl Display for Sensortypes {
         }
     }
 }
+
 impl Sensortypes {
+    /// Returns the sensor name as a string in english
     pub fn get_name(&self) -> String {
         match self {
             Sensortypes::Feuchtigkeit => String::from("soil-moisture"),
@@ -101,6 +145,8 @@ impl Sensortypes {
             Sensortypes::Licht => String::from("light"),
         }
     }
+
+    /// Returns the color associated with the sensor
     pub fn get_color(&self) -> RGBColor {
         match self {
             Sensortypes::Feuchtigkeit => RGBColor(0, 0, 255),
@@ -109,6 +155,8 @@ impl Sensortypes {
             Sensortypes::Licht => RGBColor(255, 255, 0),
         }
     }
+
+    /// Returns a random offset color associated with the sensor
     pub fn get_color_with_random_offset(&self) -> RGBColor {
         let mut rng = rand::thread_rng();
         let offset = rng.gen_range(0..=255);
@@ -121,6 +169,8 @@ impl Sensortypes {
             Sensortypes::Licht => RGBColor(255 - offset3, 255 - offset3.clone(), offset),
         }
     }
+
+    /// Returns an iterator over all available sensors
     pub fn iter() -> impl Iterator<Item = Sensortypes> {
         [
             Sensortypes::Feuchtigkeit,
@@ -133,6 +183,7 @@ impl Sensortypes {
     }
 }
 impl DetailPage {
+    /// Creates a new detail page
     pub fn new() -> DetailPage {
         let plant = DetailPlant {
             id: String::new(),
@@ -157,6 +208,7 @@ impl DetailPage {
             message: DetailMessage::Pending,
         }
     }
+    /// If the string is longer than 30 characters, a newline is inserted every 30 characters
     pub fn insert_newline_to_string(&self, string: String) -> String {
         let mut new_string = String::new();
         let mut counter = 0;
@@ -172,6 +224,7 @@ impl DetailPage {
         }
         new_string
     }
+    /// Adds the sensor border graph to the plant charts
     pub fn min_max_graphs(&self, sensor_types: Sensortypes) -> Vec<PlantChart> {
         let mut charts = vec![];
         self.plant
@@ -203,6 +256,7 @@ impl DetailPage {
             });
         charts
     }
+    /// Handles the messages for the detail page
     pub fn update(&mut self, message: DetailMessage) -> Command<DetailMessage> {
         match message {
             DetailMessage::SwitchTime(value) => {
@@ -230,6 +284,7 @@ impl DetailPage {
                     |_| DetailMessage::DeleteSuccess,
                 );
             }
+
             DetailMessage::Load => {
                 info!("Refresh Id List");
                 //if empty self.id_names should be an empty vec

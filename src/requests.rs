@@ -180,7 +180,7 @@ impl ApiClient {
         *client_lock = new_client
     }
 
-    /// Gets the plants from the API
+    /// Gets the graphs for the given ids, plant, sensor type and time range
     #[tokio::main(flavor = "current_thread")]
     pub async fn get_graphs(
         self,
@@ -306,6 +306,8 @@ impl ApiClient {
             }
         }
     }
+
+    /// Creates or updates a plant
     pub async fn create_plant(
         self,
         new_plant: PlantMetadata,
@@ -346,6 +348,8 @@ impl ApiClient {
 
         Ok(())
     }
+
+    /// Deletes a plant
     pub async fn delete_plant(self, plant_id: String) -> Result<(), reqwest::Error> {
         info!("Plant {} deleted", plant_id);
         let client = self.client.lock().await;
@@ -366,6 +370,8 @@ impl ApiClient {
             }
         }
     }
+
+    /// Deletes a group
     pub async fn delete_group(self, group_id: String) -> Result<(), reqwest::Error> {
         let client = self.client.lock().await;
         let response = client
@@ -385,6 +391,8 @@ impl ApiClient {
             }
         }
     }
+
+    /// Creates or updates a group
     pub async fn create_group(
         self,
         new_group: PlantGroupMetadata,

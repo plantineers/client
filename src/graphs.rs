@@ -11,6 +11,13 @@ use plotters::style::{Color, IntoFont, BLACK, BLUE, WHITE};
 use plotters_iced::{Chart, ChartBuilder, ChartWidget, DrawingBackend};
 
 #[derive(Debug, Clone, PartialEq)]
+/// A chart that can be drawn
+///
+/// Fields:
+/// - `name`: The name of the chart
+/// - `x`: The x values of the chart
+/// - `y`: The y values of the chart
+/// - `color`: The color of the chart
 pub struct PlantChart {
     pub name: String,
     pub x: Vec<i32>,
@@ -18,9 +25,11 @@ pub struct PlantChart {
     color: RGBColor,
 }
 impl PlantChart {
+    /// Create a new PlantChart
     pub fn new(name: String, x: Vec<i32>, y: Vec<i32>, color: RGBColor) -> PlantChart {
         PlantChart { name, x, y, color }
     }
+    /// Create a test PlantChart
     pub fn test() -> PlantChart {
         PlantChart {
             name: String::from("Test"),
@@ -29,11 +38,13 @@ impl PlantChart {
             color: BLUE,
         }
     }
+    /// Get the color of the chart
     pub fn get_color(&self) -> RGBColor {
         self.color
     }
 }
 impl Default for PlantChart {
+    /// Create a default PlantChart
     fn default() -> Self {
         Self {
             name: String::new(),
@@ -44,21 +55,29 @@ impl Default for PlantChart {
     }
 }
 #[derive(Debug, Clone, PartialEq)]
+/// A collection of PlantCharts
+///
+/// Fields:
+/// - `charts`: The charts
+/// - `message`: The message that is passed to the charts, depending on the page it is used in
 pub struct PlantCharts<M> {
     pub charts: Vec<PlantChart>,
     pub message: M,
 }
 
 impl<M: 'static> PlantCharts<M> {
+    /// Create a new PlantCharts object
     pub fn new(charts: Vec<PlantChart>, message: M) -> PlantCharts<M> {
         PlantCharts { charts, message }
     }
+    /// Create a test PlantCharts object
     pub fn test(message: M) -> PlantCharts<M> {
         PlantCharts {
             charts: vec![PlantChart::test()],
             message,
         }
     }
+    /// Get the largest x and y values of the charts
     pub fn largest_x_y(&self) -> (i32, i32) {
         let mut x = 0;
         let mut y = 0;
@@ -74,6 +93,7 @@ impl<M: 'static> PlantCharts<M> {
         }
         (x, y)
     }
+    /// Create the charts from the data
     pub fn create_charts(
         message: M,
         graph_data: Vec<GraphData>,
@@ -92,6 +112,7 @@ impl<M: 'static> PlantCharts<M> {
         }
         PlantCharts::new(charts, message)
     }
+    /// Update the charts with new data
     pub fn update_charts(
         &self,
         message: M,
@@ -105,6 +126,7 @@ impl<M: 'static> PlantCharts<M> {
 
 impl<M: 'static + Clone> Chart<M> for PlantCharts<M> {
     type State = ();
+    /// Build the chart
     fn build_chart<DB: DrawingBackend>(&self, _state: &Self::State, mut builder: ChartBuilder<DB>) {
         //Change background color
         let mut chart = builder
@@ -153,6 +175,7 @@ impl<M: 'static + Clone> Chart<M> for PlantCharts<M> {
 }
 
 impl<M: 'static + Clone> PlantCharts<M> {
+    /// Shows the chart
     fn view(&self) -> Element<'_, M> {
         ChartWidget::new(self)
             .width(Length::Fill)
